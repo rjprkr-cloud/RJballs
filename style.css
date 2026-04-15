@@ -6,24 +6,36 @@
   --fg: #f4f4ff;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* { box-sizing: border-box; }
 
 html, body {
-  width: 100%;
-  height: 100%;
+  margin: 0;
+  padding: 0;
   background: var(--bg);
   color: var(--fg);
   font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  height: 100%;
   overflow: hidden;
 }
 
-canvas {
-  display: block;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw !important;
-  height: 100vh !important;
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse at top, rgba(198,75,255,0.18), transparent 55%),
+    radial-gradient(ellipse at bottom, rgba(255,79,216,0.12), transparent 55%),
+    var(--bg);
+}
+
+#game {
+  max-width: 95vw;
+  max-height: 85vh;
+  background: #120826;
+  border: 2px solid var(--accent);
+  border-radius: 10px;
+  box-shadow: 0 0 80px rgba(198, 75, 255, 0.55);
+  image-rendering: pixelated;
 }
 
 #hud {

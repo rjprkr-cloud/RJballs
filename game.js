@@ -586,31 +586,31 @@ function drawFloor() {
   for (let ty=WALL;ty<=H-WALL;ty+=TILE){ctx.beginPath();ctx.moveTo(WALL,ty);ctx.lineTo(W-WALL,ty);ctx.stroke();}
 }
 function drawWalls() {
+  ctx.shadowBlur=0;
   ctx.fillStyle='#1a0840';
   ctx.fillRect(0,0,W,WALL);ctx.fillRect(0,H-WALL,W,WALL);
   ctx.fillRect(0,0,WALL,H);ctx.fillRect(W-WALL,0,WALL,H);
   ctx.strokeStyle='#4a1080';ctx.lineWidth=2;ctx.strokeRect(WALL,WALL,W-WALL*2,H-WALL*2);
-  ctx.strokeStyle='#9030e0';ctx.lineWidth=2;
+  ctx.strokeStyle='#5a1898';ctx.lineWidth=2;
   for (const[cx,cy,sx,sy] of [[WALL,WALL,1,1],[W-WALL,WALL,-1,1],[WALL,H-WALL,1,-1],[W-WALL,H-WALL,-1,-1]]){
     const B=18;ctx.beginPath();ctx.moveTo(cx+sx*B,cy);ctx.lineTo(cx,cy);ctx.lineTo(cx,cy+sy*B);ctx.stroke();
   }
 }
 function drawFurniture() {
+  // No shadowBlur on static geometry — just flat fills + strokes
   for (const f of FURNITURE) {
-    ctx.save();
     if (f.type==='pillar'){
-      ctx.shadowColor='#9030e0';ctx.shadowBlur=12;ctx.fillStyle='#2a0a50';ctx.fillRect(f.x,f.y,f.w,f.h);
-      ctx.strokeStyle='#9030e0';ctx.lineWidth=1.5;ctx.strokeRect(f.x,f.y,f.w,f.h);
+      ctx.fillStyle='#2a0a50'; ctx.fillRect(f.x,f.y,f.w,f.h);
+      ctx.strokeStyle='#7020c0'; ctx.lineWidth=1.5; ctx.strokeRect(f.x,f.y,f.w,f.h);
     } else if (f.type==='table'){
-      ctx.fillStyle='#1e0840';ctx.fillRect(f.x,f.y,f.w,f.h);
-      ctx.strokeStyle='#4a1a80';ctx.lineWidth=1.5;ctx.strokeRect(f.x,f.y,f.w,f.h);
-      ctx.strokeStyle='rgba(90,40,140,0.35)';ctx.lineWidth=1;
+      ctx.fillStyle='#1e0840'; ctx.fillRect(f.x,f.y,f.w,f.h);
+      ctx.strokeStyle='#4a1a80'; ctx.lineWidth=1.5; ctx.strokeRect(f.x,f.y,f.w,f.h);
+      ctx.strokeStyle='rgba(90,40,140,0.3)'; ctx.lineWidth=1;
       for(let lx=f.x+12;lx<f.x+f.w-4;lx+=14){ctx.beginPath();ctx.moveTo(lx,f.y+6);ctx.lineTo(lx,f.y+f.h-6);ctx.stroke();}
     } else {
-      ctx.fillStyle='#180636';ctx.fillRect(f.x,f.y,f.w,f.h);
-      ctx.strokeStyle='#3a1070';ctx.lineWidth=1.5;ctx.strokeRect(f.x,f.y,f.w,f.h);
+      ctx.fillStyle='#180636'; ctx.fillRect(f.x,f.y,f.w,f.h);
+      ctx.strokeStyle='#3a1070'; ctx.lineWidth=1.5; ctx.strokeRect(f.x,f.y,f.w,f.h);
     }
-    ctx.restore();
   }
 }
 function drawPortal(p) {
@@ -672,35 +672,45 @@ function drawWalkPads() {
 function drawPlayerBullets() {
   if (!bullets.length) return;
   ctx.save();
-  ctx.shadowColor='#00ddff';ctx.shadowBlur=20;ctx.globalAlpha=0.42;ctx.fillStyle='#00ddff';
-  for(const b of bullets){ctx.beginPath();ctx.arc(b.x,b.y,b.r+4,0,Math.PI*2);ctx.fill();}
-  ctx.globalAlpha=1;ctx.shadowBlur=8;
+  // Flat-colour cores grouped by weapon colour — no shadowBlur for perf
   const byClr=new Map();
   for(const b of bullets){if(!byClr.has(b.clr))byClr.set(b.clr,[]);byClr.get(b.clr).push(b);}
-  for(const[clr,bs] of byClr){ctx.shadowColor=clr;ctx.fillStyle=clr;for(const b of bs){ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();}}
+  for(const[clr,bs] of byClr){
+    // Outer teal halo (single set-state before the group)
+    ctx.globalAlpha=0.55; ctx.fillStyle='#00ddff';
+    for(const b of bs){ctx.beginPath();ctx.arc(b.x,b.y,b.r+3,0,Math.PI*2);ctx.fill();}
+    // Weapon-colour core
+    ctx.globalAlpha=1; ctx.fillStyle=clr;
+    for(const b of bs){ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();}
+  }
   ctx.restore();
 }
 function drawEnemyBullets() {
   if (!enemyBullets.length) return;
   ctx.save();
-  ctx.shadowColor='#ff0000';ctx.shadowBlur=24;ctx.globalAlpha=0.38;ctx.fillStyle='#ff0022';
-  for(const b of enemyBullets){ctx.beginPath();ctx.arc(b.x,b.y,b.r+5,0,Math.PI*2);ctx.fill();}
-  ctx.globalAlpha=1;ctx.shadowBlur=10;ctx.fillStyle='#ff2244';
+  // Red outer ring
+  ctx.globalAlpha=0.45; ctx.fillStyle='#ff0022';
+  for(const b of enemyBullets){ctx.beginPath();ctx.arc(b.x,b.y,b.r+4,0,Math.PI*2);ctx.fill();}
+  // Red core
+  ctx.globalAlpha=1; ctx.fillStyle='#ff3355';
   for(const b of enemyBullets){ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();}
   ctx.restore();
 }
 function drawEnemies() {
   if (!enemies.length) return;
+  // No per-entity shadowBlur — batch by colour for performance
+  // Dark outer ring pass
   ctx.save();
-  ctx.shadowColor='#ff0000';ctx.shadowBlur=16;ctx.globalAlpha=0.25;ctx.fillStyle='#ff0000';
-  for(const e of enemies){ctx.beginPath();ctx.arc(e.x,e.y,e.r+5,0,Math.PI*2);ctx.fill();}
+  ctx.globalAlpha=0.35; ctx.fillStyle='#550000';
+  for(const e of enemies){ctx.beginPath();ctx.arc(e.x,e.y,e.r+4,0,Math.PI*2);ctx.fill();}
   ctx.restore();
+  // Coloured core + dot + HP bar
   for(const e of enemies){
-    ctx.save();ctx.shadowColor=e.clr;ctx.shadowBlur=10;ctx.fillStyle=e.clr;
+    ctx.fillStyle=e.clr; ctx.globalAlpha=1;
     ctx.beginPath();ctx.arc(e.x,e.y,e.r,0,Math.PI*2);ctx.fill();
     const dotX=e.x+Math.cos(e.angle)*(e.r-4),dotY=e.y+Math.sin(e.angle)*(e.r-4);
-    ctx.fillStyle='rgba(255,255,255,0.55)';ctx.shadowBlur=0;ctx.beginPath();ctx.arc(dotX,dotY,2.5,0,Math.PI*2);ctx.fill();
-    ctx.restore();
+    ctx.fillStyle='rgba(255,255,255,0.6)';
+    ctx.beginPath();ctx.arc(dotX,dotY,2.5,0,Math.PI*2);ctx.fill();
     const bw=e.r*2.2;
     ctx.fillStyle='#440000';ctx.fillRect(e.x-bw/2,e.y-e.r-10,bw,4);
     ctx.fillStyle='#ff4455';ctx.fillRect(e.x-bw/2,e.y-e.r-10,bw*(e.hp/e.maxHp),4);
@@ -710,9 +720,9 @@ function drawBoss(b) {
   if (!b) return;
   const enr=b.enraged, pulse=Math.sin(t*(enr?6:3))*0.5+0.5;
   ctx.save();
-  ctx.globalAlpha=0.10+pulse*0.06;ctx.shadowColor='#ff0000';ctx.shadowBlur=70;ctx.fillStyle='#ff0022';
+  ctx.globalAlpha=0.10+pulse*0.06;ctx.shadowColor='#ff0000';ctx.shadowBlur=20;ctx.fillStyle='#ff0022';
   ctx.beginPath();ctx.arc(b.x,b.y,b.r+30+pulse*12,0,Math.PI*2);ctx.fill();
-  ctx.globalAlpha=0.35;ctx.shadowBlur=30;
+  ctx.globalAlpha=0.35;ctx.shadowBlur=12;
   ctx.beginPath();ctx.arc(b.x,b.y,b.r+12,0,Math.PI*2);ctx.fill();
   ctx.save();ctx.translate(b.x,b.y);
   ctx.strokeStyle=enr?'#ff6600':'#ff0033';ctx.lineWidth=2.5;ctx.shadowColor=enr?'#ff6600':'#ff0033';ctx.shadowBlur=12;ctx.globalAlpha=0.85;
@@ -940,6 +950,8 @@ function drawDeadScreen() {
 
 // ── Render ────────────────────────────────────────────────────────
 function render() {
+  // Reset critical state at the top of every frame
+  ctx.globalAlpha=1; ctx.shadowBlur=0; ctx.setLineDash([]);
   ctx.fillStyle='#0a0514';ctx.fillRect(0,0,W,H);
   drawFloor();drawWalls();drawFurniture();
 
@@ -967,7 +979,20 @@ function render() {
 let last=performance.now();
 function loop(now){
   const dt=Math.min(0.05,(now-last)/1000);last=now;
-  update(dt);render();
+  try {
+    update(dt);
+    render();
+  } catch(e) {
+    // Show the real error on canvas instead of silently dying
+    ctx.fillStyle='#0a0514'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#ff4455'; ctx.font='bold 28px ui-sans-serif,sans-serif';
+    ctx.textAlign='center';
+    ctx.fillText('ERROR — check console', W/2, H/2-20);
+    ctx.fillStyle='rgba(255,255,255,0.7)'; ctx.font='16px monospace';
+    ctx.fillText(String(e), W/2, H/2+16);
+    console.error('[arena] loop error:', e);
+    return; // stop loop so the message stays visible
+  }
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);

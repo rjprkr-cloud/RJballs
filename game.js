@@ -10,6 +10,13 @@ function updateCursor() {
   canvas.style.cursor = (state === 'playing') ? 'none' : 'default';
 }
 
+// ── Music ─────────────────────────────────────────────────────────
+const music = new Audio('music.mp3');
+music.loop = true;
+music.volume = 0.55;
+function musicPlay()  { if (music.paused) music.play().catch(()=>{}); }
+function musicPause() { if (!music.paused) music.pause(); }
+
 // ── Portal protocol ───────────────────────────────────────────────
 const incoming   = Portal.readPortalParams();
 document.getElementById('username').textContent = incoming.username;
@@ -288,8 +295,8 @@ addEventListener('keydown', e => {
   keys[e.key.toLowerCase()] = true;
   if (e.key === ' ') e.preventDefault(); // stop spacebar scrolling page
   if (e.key === 'Escape') {
-    if (state === 'playing') state = 'paused';
-    else if (state === 'paused') state = 'playing';
+    if (state === 'playing') { state = 'paused'; musicPause(); }
+    else if (state === 'paused') { state = 'playing'; musicPlay(); }
     updateCursor();
   }
 });
@@ -311,12 +318,12 @@ function hitBtn(mx,my,bx,by) {
 // Click only used for dead screen now
 function handleClick(mx,my) {
   if (state==='paused') {
-    if (hitBtn(mx,my,W/2,H/2+10))  { state='playing'; updateCursor(); }
-    if (hitBtn(mx,my,W/2,H/2+78))  { movePortals(true); state='menu'; updateCursor(); }
+    if (hitBtn(mx,my,W/2,H/2+10))  { state='playing'; musicPlay();  updateCursor(); }
+    if (hitBtn(mx,my,W/2,H/2+78))  { movePortals(true); state='menu'; musicPause(); updateCursor(); }
   }
   if (state==='dead') {
-    if (hitBtn(mx,my,W/2,H/2+45))  { initGame(); state='playing'; updateCursor(); }
-    if (hitBtn(mx,my,W/2,H/2+108)) { movePortals(true); state='menu'; updateCursor(); }
+    if (hitBtn(mx,my,W/2,H/2+45))  { initGame(); state='playing'; musicPlay();  updateCursor(); }
+    if (hitBtn(mx,my,W/2,H/2+108)) { movePortals(true); state='menu'; musicPause(); updateCursor(); }
   }
 }
 
@@ -416,7 +423,7 @@ function update(dt) {
         pad.timer = Math.min(PAD_HOLD, pad.timer+dt);
         if (pad.timer >= PAD_HOLD) {
           pad.timer=0;
-          if (pad.id==='start') { initGame(); state='playing'; updateCursor(); return; }
+          if (pad.id==='start') { initGame(); state='playing'; musicPlay(); updateCursor(); return; }
           if (pad.id==='end')   {
             window.location.href = nextTarget?.url ?? 'https://callumhyoung.github.io/gamejam/';
           }
@@ -575,7 +582,7 @@ function update(dt) {
     if (waveTimer<=0) spawnWave();
   }
 
-  if (player.hp<=0){player.hp=0;state='dead';}
+  if (player.hp<=0){player.hp=0;state='dead';musicPause();music.currentTime=0;}
 
   const now=performance.now();
   if(now-lastBroad>66){lastBroad=now;broadcastSelf();}

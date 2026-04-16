@@ -176,8 +176,9 @@ const SOLID = [...WALLS, ...FURNITURE];
 
 // ── Walk-on menu pads ─────────────────────────────────────────────
 const WALK_PADS = [
-  { id:'start',  x:W/2-190, y:H*0.64, w:240, h:100, label:'START',  sub:'stand to begin', clr:'#44ff88', timer:0 },
-  { id:'scores', x:W/2+190, y:H*0.64, w:240, h:100, label:'SCORES', sub:'stand to view',  clr:'#44ddff', timer:0 },
+  { id:'start',  x:W/2-380, y:H*0.64, w:240, h:100, label:'START',      sub:'stand to begin',  clr:'#44ff88', timer:0 },
+  { id:'multi',  x:W/2,     y:H*0.64, w:260, h:100, label:'MULTIPLAYER',sub:'stand to ready up',clr:'#ff9944', timer:0 },
+  { id:'scores', x:W/2+380, y:H*0.64, w:240, h:100, label:'SCORES',     sub:'stand to view',   clr:'#44ddff', timer:0 },
 ];
 const PAD_HOLD = 1.0; // seconds to hold before activating
 
@@ -240,6 +241,16 @@ let wave, waveTimer, shotCd, kills, buffSpawnTimer;
 let notif = '', notifT = 0, notifClr = '#ffdd44';
 let t = 0, lastBroad = 0;
 
+// ── Multiplayer-pad state ─────────────────────────────────────────
+let localReady = false, multiCountdown = 0;
+const peerReady = new Map();
+let sendReady = null, sendGameStart = null, sendKillSync = null;
+function allReady() {
+  if (!localReady) return false;
+  for (const id of peers.keys()) { if (!peerReady.get(id)) return false; }
+  return true;
+}
+
 // Player is always live so lobby movement works
 let player = {
   x: W / 2, y: H / 2 - 80, r: PR, speed: 10,
@@ -258,8 +269,10 @@ function initGame() {
   bullets=[]; enemyBullets=[]; enemies=[];
   boss=null; explosions=[]; buffItems=[]; beams=[];
   wave=0; waveTimer=WAVE_DELAY; shotCd=0; kills=0; buffSpawnTimer=25;
-  // Reset pad timers
+  // Reset pad timers and ready state
   for (const p of WALK_PADS) p.timer = 0;
+  localReady=false; multiCountdown=0;
+  sendReady?.({ready:false});
   spawnWave();
   movePortals(false); // portals off-map during game
 }
@@ -666,13 +679,36 @@ async function setupMultiplayer() {
       if (d.username && d.score != null) lbSubmit(d);
     });
 
+    // ── Multiplayer-pad P2P actions ───────────────────────────────
+    const [sReady,gReady]=room.makeAction('mready');
+    sendReady=sReady;
+    gReady((d,peerId)=>{ peerReady.set(peerId,!!d.ready); });
+
+    const [sStart,gStart]=room.makeAction('mstart');
+    sendGameStart=sStart;
+    gStart(()=>{
+      if (state==='menu'){ initGame(); state='playing'; musicPlay(); updateCursor(); }
+    });
+
+    const [sKill,gKill]=room.makeAction('mkill');
+    sendKillSync=sKill;
+    gKill((d)=>{
+      if (state!=='playing') return;
+      let nearest=null, nearestD=250;
+      for (const e of enemies){
+        const dist=Math.hypot(e.x-d.x,e.y-d.y);
+        if (dist<nearestD){nearest=e;nearestD=dist;}
+      }
+      if (nearest) nearest.hp=0;
+    });
+
     room.onPeerJoin(id=>{
       peers.set(id,null); broadcastSelf(); refreshCount();
       // Gossip our full local leaderboard to the newcomer so scores spread between players
       const all = lbLoad();
       setTimeout(()=>{ for (const entry of all) sendScore?.({...entry}); }, 800);
     });
-    room.onPeerLeave(id=>{peers.delete(id);refreshCount();});
+    room.onPeerLeave(id=>{peers.delete(id);peerReady.delete(id);refreshCount();});
     get((d,id)=>{const p=peers.get(id);peers.set(id,{...d,renderX:p?.renderX??d.x,renderY:p?.renderY??d.y});});
     refreshCount(); broadcastSelf();
   } catch { setPeerStatus('multiplayer offline',true); }
@@ -736,11 +772,31 @@ function update(dt) {
           if (pad.id==='end')    {
             window.location.href = nextTarget?.url ?? 'https://callumhyoung.github.io/gamejam/';
           }
+          if (pad.id==='multi')  {
+            // Toggle ready state and broadcast to peers
+            localReady = !localReady;
+            sendReady?.({ ready: localReady });
+            if (!localReady) multiCountdown = 0; // un-ready cancels countdown
+            return;
+          }
         }
       } else {
         pad.timer = Math.max(0, pad.timer-dt*1.8);
       }
     }
+
+    // ── Multiplayer countdown: start when ALL players are ready
+    if (peers.size > 0 && allReady()) {
+      if (multiCountdown <= 0) multiCountdown = 10;
+      multiCountdown -= dt;
+      if (multiCountdown <= 0) {
+        sendGameStart?.({});
+        initGame(); state='playing'; musicPlay(); updateCursor(); return;
+      }
+    } else {
+      multiCountdown = 0;
+    }
+
     checkPortals();
     const now=performance.now();
     if (now-lastBroad>66){lastBroad=now;broadcastSelf();}
@@ -950,6 +1006,7 @@ function update(dt) {
   enemies=enemies.filter(e=>{
     if(e.hp<=0){
       gainXP(e.xp);kills++;
+      sendKillSync?.({x:e.x, y:e.y}); // tell peers to kill nearest enemy at this position
       if (e.kind==='Ember') {
         // Death explosion damages player if nearby
         createExplosion(e.x,e.y,100,'#ff6600');
@@ -1095,34 +1152,56 @@ function drawWalkPads() {
     const hovered = prog > 0;
     const rx=pad.x-pad.w/2, ry=pad.y-pad.h/2;
 
+    // Multi pad: override color when local player is ready
+    const isMulti = pad.id === 'multi';
+    const padClr  = (isMulti && localReady) ? '#44ff88' : pad.clr;
+    const readyCount = (localReady?1:0) + [...peerReady.values()].filter(r=>r).length;
+    const totalCount = peers.size + 1;
+
     ctx.save();
     // Floor glow
-    ctx.shadowColor=pad.clr; ctx.shadowBlur=hovered ? 30+pulse*20 : 14+pulse*8;
-    ctx.globalAlpha=0.12+pulse*0.06+(hovered?0.12:0);
-    ctx.fillStyle=pad.clr;
+    ctx.shadowColor=padClr; ctx.shadowBlur=hovered ? 30+pulse*20 : 14+pulse*8;
+    ctx.globalAlpha=0.12+pulse*0.06+(hovered?0.12:0)+(isMulti&&localReady?0.14:0);
+    ctx.fillStyle=padClr;
     ctx.beginPath();ctx.rect(rx,ry,pad.w,pad.h);ctx.fill();
 
     // Border
     ctx.globalAlpha=0.6+(hovered?0.3:0); ctx.shadowBlur=6;
-    ctx.strokeStyle=pad.clr; ctx.lineWidth=2;
+    ctx.strokeStyle=padClr; ctx.lineWidth=2;
     ctx.beginPath();ctx.rect(rx,ry,pad.w,pad.h);ctx.stroke();
 
     // Progress fill
     if (prog>0) {
-      ctx.globalAlpha=0.28;ctx.fillStyle=pad.clr;
+      ctx.globalAlpha=0.28;ctx.fillStyle=padClr;
       ctx.beginPath();ctx.rect(rx,ry,pad.w*prog,pad.h);ctx.fill();
     }
 
+    // Countdown fill (multi pad only)
+    if (isMulti && multiCountdown > 0) {
+      ctx.globalAlpha=0.22+(Math.sin(t*6)*0.08);ctx.fillStyle='#44ff88';
+      ctx.beginPath();ctx.rect(rx,ry,pad.w*(multiCountdown/10),pad.h);ctx.fill();
+    }
+
     // Label
-    ctx.globalAlpha=1; ctx.shadowColor=pad.clr; ctx.shadowBlur=hovered?14:6;
-    ctx.fillStyle=pad.clr; ctx.font='bold 46px ui-sans-serif,sans-serif';
+    const padLabel = (isMulti && localReady) ? 'READY!' : pad.label;
+    ctx.globalAlpha=1; ctx.shadowColor=padClr; ctx.shadowBlur=hovered?14:6;
+    ctx.fillStyle=padClr; ctx.font='bold 46px ui-sans-serif,sans-serif';
     ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(pad.label, pad.x, pad.y-10);
+    ctx.fillText(padLabel, pad.x, pad.y-10);
 
     // Sub label
+    let subText;
+    if (isMulti) {
+      if (multiCountdown > 0)      subText = `Starting in ${Math.ceil(multiCountdown)}s…`;
+      else if (hovered)            subText = `${Math.ceil((PAD_HOLD-pad.timer)*10)/10}s…`;
+      else if (localReady)         subText = `YOU READY  ·  ${readyCount}/${totalCount} ready`;
+      else                         subText = `${readyCount}/${totalCount} ready  ·  stand to toggle`;
+    } else {
+      subText = hovered ? `${Math.ceil((PAD_HOLD-pad.timer)*10)/10}s…` : pad.sub;
+    }
     ctx.fillStyle='rgba(255,255,255,0.55)'; ctx.font='22px ui-sans-serif,sans-serif';
     ctx.shadowBlur=0;
-    ctx.fillText(hovered ? `${Math.ceil((PAD_HOLD-pad.timer)*10)/10}s…` : pad.sub, pad.x, pad.y+22);
+    ctx.fillText(subText, pad.x, pad.y+22);
 
     ctx.restore();
     ctx.textBaseline='alphabetic';
@@ -1512,6 +1591,33 @@ function drawMenuOverlay() {
 
   // Walk-on pads drawn on the floor (lower half of arena)
   drawWalkPads();
+
+  // ── Multi-pad ready indicators: dots above the MULTI pad ─────────
+  {
+    const multiPad = WALK_PADS.find(p=>p.id==='multi');
+    if (multiPad && peers.size > 0) {
+      const dotR=10, gap=28, allPlayers=[{name:incoming.username,ready:localReady,clr:player.color}];
+      for (const [id,pd] of peers) allPlayers.push({name:pd?.username||'?',ready:!!peerReady.get(id),clr:pd?.color||'#888'});
+      const rowW=(allPlayers.length-1)*gap;
+      const startDx=multiPad.x - rowW/2;
+      const dotY=multiPad.y - multiPad.h/2 - 22;
+      ctx.save();
+      for (let i=0;i<allPlayers.length;i++){
+        const ap=allPlayers[i];
+        const dx=startDx+i*gap;
+        ctx.globalAlpha=1;
+        ctx.shadowColor=ap.ready?'#44ff88':'#444';ctx.shadowBlur=ap.ready?12:0;
+        ctx.fillStyle=ap.ready?'#44ff88':'rgba(255,255,255,0.25)';
+        ctx.beginPath();ctx.arc(dx,dotY,dotR,0,Math.PI*2);ctx.fill();
+        if (ap.ready){
+          ctx.fillStyle='#000';ctx.font='bold 14px ui-sans-serif,sans-serif';
+          ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowBlur=0;
+          ctx.fillText('✓',dx,dotY);
+        }
+      }
+      ctx.restore();ctx.textBaseline='alphabetic';
+    }
+  }
 
   // Portals active in lobby
   drawPortal(exitPortal);

@@ -17,6 +17,18 @@ music.volume = 0.55;
 function musicPlay()  { if (music.paused) music.play().catch(()=>{}); }
 function musicPause() { if (!music.paused) music.pause(); }
 
+// Browsers block Audio.play() unless it originates from a user gesture.
+// Prime the audio context on the very first input so musicPlay() works
+// from anywhere in the code (RAF, pad walk-on, etc.).
+let _audioUnlocked = false;
+function _unlockAudio() {
+  if (_audioUnlocked) return;
+  _audioUnlocked = true;
+  music.play().then(() => { if (state !== 'playing') music.pause(); }).catch(()=>{});
+}
+addEventListener('mousedown', _unlockAudio, { once: true });
+addEventListener('keydown',   _unlockAudio, { once: true });
+
 // ── Portal protocol ───────────────────────────────────────────────
 const incoming   = Portal.readPortalParams();
 document.getElementById('username').textContent = incoming.username;
@@ -319,8 +331,8 @@ function hitBtn(mx,my,bx,by) {
 // Click only used for dead screen now
 function handleClick(mx,my) {
   if (state==='paused') {
-    if (hitBtn(mx,my,W/2,H/2+10))  { state='playing'; musicPlay();  updateCursor(); }
-    if (hitBtn(mx,my,W/2,H/2+78))  { movePortals(true); state='menu'; musicPause(); updateCursor(); }
+    if (hitBtn(mx,my,W/2-200,H/2+10))  { state='playing'; musicPlay();  updateCursor(); }
+    if (hitBtn(mx,my,W/2-200,H/2+78))  { movePortals(true); state='menu'; musicPause(); updateCursor(); }
   }
   if (state==='dead') {
     if (hitBtn(mx,my,W/2,H/2+45))  { initGame(); state='playing'; musicPlay();  updateCursor(); }

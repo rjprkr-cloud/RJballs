@@ -676,10 +676,11 @@ function update(dt) {
     }
     if (boss.hp<=0){
       gainXP(boss.xp);kills++;
-      for (let i=0;i<BUFF_DEFS.length;i++){
-        const a=(i/BUFF_DEFS.length)*Math.PI*2;
-        buffItems.push({x:boss.x+Math.cos(a)*60,y:boss.y+Math.sin(a)*60,def:BUFF_DEFS[i],life:25,pulse:0});
-      }
+      const pool=[...BUFF_DEFS].sort(()=>Math.random()-0.5).slice(0,2);
+      pool.forEach((def,i)=>{
+        const a=(i/pool.length)*Math.PI*2;
+        buffItems.push({x:boss.x+Math.cos(a)*60,y:boss.y+Math.sin(a)*60,def,life:25,pulse:0});
+      });
       createExplosion(boss.x,boss.y,90,'#ff0033');
       player.hp = Math.min(player.hp + 80, player.maxHp); // heal on boss kill
       showNotif('BOSS DEFEATED! +80 HP!','#44ff88');

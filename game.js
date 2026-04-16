@@ -1091,7 +1091,7 @@ function drawLeaderboard(cx, cy, title='LEADERBOARD') {
 
     // Score highlighted
     ctx.fillStyle = i===0 ? '#ffd700' : 'rgba(255,255,255,0.85)';
-    ctx.fillText(e.score.toLocaleString(), col.score, ry);
+    ctx.fillText((e.score ?? 0).toLocaleString(), col.score, ry);
 
     // Wave, kills, level
     ctx.fillStyle='rgba(255,255,255,0.6)'; ctx.font='12px ui-sans-serif,sans-serif';
@@ -1185,21 +1185,27 @@ function render() {
 
 // ── Loop ──────────────────────────────────────────────────────────
 let last=performance.now();
+let _errFrames=0; // consecutive error frames — stop loop only if truly unrecoverable
 function loop(now){
   const dt=Math.min(0.05,(now-last)/1000);last=now;
   try {
     update(dt);
     render();
-  } catch(e) {
-    // Show the real error on canvas instead of silently dying
-    ctx.fillStyle='#0a0514'; ctx.fillRect(0,0,W,H);
-    ctx.fillStyle='#ff4455'; ctx.font='bold 28px ui-sans-serif,sans-serif';
-    ctx.textAlign='center';
-    ctx.fillText('ERROR — check console', W/2, H/2-20);
-    ctx.fillStyle='rgba(255,255,255,0.7)'; ctx.font='16px monospace';
-    ctx.fillText(String(e), W/2, H/2+16);
-    console.error('[arena] loop error:', e);
-    return; // stop loop so the message stays visible
+    _errFrames=0; // clear on successful frame
+  } catch(err) {
+    _errFrames++;
+    console.error('[arena] loop error:', err);
+    try {
+      ctx.fillStyle='#0a0514'; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='#ff4455'; ctx.font='bold 28px ui-sans-serif,sans-serif';
+      ctx.textAlign='center';
+      ctx.fillText('ERROR — check console', W/2, H/2-20);
+      ctx.fillStyle='rgba(255,255,255,0.7)'; ctx.font='16px monospace';
+      ctx.fillText(String(err).slice(0,120), W/2, H/2+16);
+    } catch(_) {}
+    // Keep the loop alive so buttons/Escape still work.
+    // Only stop if errors are completely unrelenting (500+ frames = ~8s).
+    if (_errFrames > 500) return;
   }
   requestAnimationFrame(loop);
 }

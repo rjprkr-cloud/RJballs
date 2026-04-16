@@ -1671,7 +1671,7 @@ function drawDeadScreen() {
   ctx.fillText(`Level ${player.level}  ·  ${kills} kills  ·  Wave ${wave}  ·  Score ${sc.toLocaleString()}`,W/2,H/2-18);
   drawButton('PLAY AGAIN',W/2-200, H/2+50,  '#44ff88');
   drawButton('MAIN MENU', W/2-200, H/2+116, '#aaaaaa');
-  drawLeaderboard(W/2+260, H/2+30, 'LEADERBOARD');
+  drawLeaderboard(W/2+260, H/2+160, 'LEADERBOARD');
 }
 
 // ── Render ────────────────────────────────────────────────────────

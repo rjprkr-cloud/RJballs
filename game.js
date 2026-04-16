@@ -1328,7 +1328,7 @@ function drawMenuOverlay() {
   ctx.fillStyle='#c64bff';ctx.font='20px ui-sans-serif,sans-serif';ctx.shadowBlur=0;
   ctx.fillText('Co-op arena shooter  ·  survive the waves  ·  level up',W/2,H*0.25);
   ctx.fillStyle='rgba(255,255,255,0.45)';ctx.font='14px ui-sans-serif,sans-serif';
-  ctx.fillText('WASD to move  ·  Mouse to aim  ·  Click to shoot  ·  Up to 6 co-op',W/2,H*0.29);
+  ctx.fillText('WASD to move  ·  Mouse to aim  ·  Click to shoot  ·  = for BOMB  ·  Up to 6 co-op',W/2,H*0.29);
   // Weapon tier row
   const startX=W/2-(WEAPONS.length*130)/2+65;
   for(let i=0;i<WEAPONS.length;i++){

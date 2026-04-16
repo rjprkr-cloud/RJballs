@@ -101,8 +101,9 @@ const SOLID = [...WALLS, ...FURNITURE];
 
 // ── Walk-on menu pads ─────────────────────────────────────────────
 const WALK_PADS = [
-  { id:'start', x:W/2-280, y:H*0.64, w:260, h:100, label:'START', sub:'stand to begin', clr:'#44ff88', timer:0 },
-  { id:'end',   x:W/2+280, y:H*0.64, w:260, h:100, label:'END',   sub:'stand to leave', clr:'#ff4455', timer:0 },
+  { id:'start',  x:W/2-380, y:H*0.64, w:240, h:100, label:'START',  sub:'stand to begin',  clr:'#44ff88', timer:0 },
+  { id:'scores', x:W/2,     y:H*0.64, w:240, h:100, label:'SCORES', sub:'stand to view',   clr:'#44ddff', timer:0 },
+  { id:'end',    x:W/2+380, y:H*0.64, w:240, h:100, label:'END',    sub:'stand to leave',  clr:'#ff4455', timer:0 },
 ];
 const PAD_HOLD = 1.0; // seconds to hold before activating
 
@@ -340,6 +341,52 @@ function checkPortals() {
   }
 }
 
+// ── Leaderboard ───────────────────────────────────────────────────
+const LB_KEY = 'arena-leaderboard-v1';
+const MAX_LB  = 20;
+
+function lbLoad() {
+  try { return JSON.parse(localStorage.getItem(LB_KEY) || '[]'); } catch { return []; }
+}
+function lbSave(entries) { localStorage.setItem(LB_KEY, JSON.stringify(entries)); }
+function lbSubmit(entry) {
+  const all = lbLoad();
+  all.push(entry);
+  all.sort((a,b) => b.score - a.score);
+  lbSave(all.slice(0, MAX_LB));
+}
+function calcScore(wave, kills, level) { return wave * 500 + kills * 50 + level * 100; }
+
+const peerScores = new Map(); // peerId → leaderboard entry
+let sendScore = null;
+let showScores = false;
+
+function submitMyScore() {
+  const score = calcScore(wave, kills, player.level);
+  const entry = {
+    username: incoming.username,
+    wave, kills, level: player.level, score,
+    date: new Date().toLocaleDateString(),
+  };
+  lbSubmit(entry);
+  // Broadcast to peers in the same room
+  sendScore?.({ ...entry, color: player.color });
+}
+
+function mergedLeaderboard() {
+  // Combine localStorage entries with live peer scores, deduplicate by username+score, sort
+  const local = lbLoad();
+  const live  = [...peerScores.values()];
+  const all   = [...local, ...live];
+  // Deduplicate: keep highest score per username
+  const byUser = new Map();
+  for (const e of all) {
+    const key = e.username?.toLowerCase() ?? '?';
+    if (!byUser.has(key) || byUser.get(key).score < e.score) byUser.set(key, e);
+  }
+  return [...byUser.values()].sort((a,b) => b.score - a.score).slice(0, MAX_LB);
+}
+
 // ── Multiplayer ───────────────────────────────────────────────────
 const peers=new Map(), peerCountEl=document.getElementById('peers');
 let sendState=null, room=null;
@@ -365,6 +412,11 @@ async function setupMultiplayer() {
     room=joinRoom({appId:'ordinary-game-jam-starter'},'demo-room');
     const [send,get]=room.makeAction('state');
     sendState=send;
+
+    const [sScore,gScore]=room.makeAction('score');
+    sendScore=sScore;
+    gScore((d,peerId)=>{ peerScores.set(peerId,d); });
+
     room.onPeerJoin(id=>{peers.set(id,null);broadcastSelf();refreshCount();});
     room.onPeerLeave(id=>{peers.delete(id);refreshCount();});
     get((d,id)=>{const p=peers.get(id);peers.set(id,{...d,renderX:p?.renderX??d.x,renderY:p?.renderY??d.y});});
@@ -423,8 +475,9 @@ function update(dt) {
         pad.timer = Math.min(PAD_HOLD, pad.timer+dt);
         if (pad.timer >= PAD_HOLD) {
           pad.timer=0;
-          if (pad.id==='start') { initGame(); state='playing'; musicPlay(); updateCursor(); return; }
-          if (pad.id==='end')   {
+          if (pad.id==='start')  { initGame(); state='playing'; musicPlay(); updateCursor(); return; }
+          if (pad.id==='scores') { showScores=!showScores; pad.timer=0; return; }
+          if (pad.id==='end')    {
             window.location.href = nextTarget?.url ?? 'https://callumhyoung.github.io/gamejam/';
           }
         }
@@ -582,7 +635,7 @@ function update(dt) {
     if (waveTimer<=0) spawnWave();
   }
 
-  if (player.hp<=0){player.hp=0;state='dead';musicPause();music.currentTime=0;}
+  if (player.hp<=0){player.hp=0;state='dead';musicPause();music.currentTime=0;submitMyScore();}
 
   const now=performance.now();
   if(now-lastBroad>66){lastBroad=now;broadcastSelf();}
@@ -956,6 +1009,94 @@ function drawMenuOverlay() {
   }
 }
 
+// ── Leaderboard panel ─────────────────────────────────────────────
+function drawLeaderboard(cx, cy, title='LEADERBOARD') {
+  const entries = mergedLeaderboard();
+  const panelW  = 560, rowH = 36;
+  const rows    = Math.min(entries.length, 12);
+  const panelH  = 80 + rows * rowH + 20;
+  const px = cx - panelW/2, py = cy - panelH/2;
+
+  ctx.save();
+
+  // Panel background
+  ctx.fillStyle='rgba(6,2,16,0.94)';
+  ctx.strokeStyle='#44ddff'; ctx.lineWidth=2;
+  ctx.shadowColor='#44ddff'; ctx.shadowBlur=18;
+  ctx.beginPath(); ctx.roundRect(px, py, panelW, panelH, 14);
+  ctx.fill(); ctx.stroke();
+  ctx.shadowBlur=0;
+
+  // Title
+  ctx.fillStyle='#44ddff'; ctx.shadowColor='#44ddff'; ctx.shadowBlur=12;
+  ctx.font='bold 22px ui-sans-serif,sans-serif'; ctx.textAlign='center';
+  ctx.fillText(title, cx, py+38); ctx.shadowBlur=0;
+
+  // Column headers
+  ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.font='11px ui-sans-serif,sans-serif';
+  const col = { rank: px+24, name: px+70, score: px+310, wave: px+390, kills: px+455, lv: px+520 };
+  const hy  = py+62;
+  ctx.textAlign='left';
+  ctx.fillText('#',     col.rank,  hy);
+  ctx.fillText('NAME',  col.name,  hy);
+  ctx.fillText('SCORE', col.score, hy);
+  ctx.fillText('WAVE',  col.wave,  hy);
+  ctx.fillText('KILLS', col.kills, hy);
+  ctx.fillText('LV',    col.lv,    hy);
+
+  // Divider
+  ctx.strokeStyle='rgba(68,221,255,0.25)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(px+16, hy+6); ctx.lineTo(px+panelW-16, hy+6); ctx.stroke();
+
+  if (entries.length === 0) {
+    ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='14px ui-sans-serif,sans-serif';
+    ctx.textAlign='center';
+    ctx.fillText('No scores yet — play a run!', cx, py + panelH/2 + 20);
+    ctx.restore(); return;
+  }
+
+  for (let i=0; i<rows; i++) {
+    const e   = entries[i];
+    const ry  = hy + 14 + i*rowH;
+    const isMe = e.username?.toLowerCase() === incoming.username?.toLowerCase();
+
+    // Row highlight for top 3 or own score
+    if (i === 0)   { ctx.fillStyle='rgba(255,215,0,0.08)'; ctx.fillRect(px+8, ry-14, panelW-16, rowH-2); }
+    else if (i===1){ ctx.fillStyle='rgba(192,192,192,0.06)'; ctx.fillRect(px+8, ry-14, panelW-16, rowH-2); }
+    else if (i===2){ ctx.fillStyle='rgba(205,127,50,0.06)';  ctx.fillRect(px+8, ry-14, panelW-16, rowH-2); }
+    if (isMe)      { ctx.fillStyle='rgba(68,255,136,0.08)'; ctx.fillRect(px+8, ry-14, panelW-16, rowH-2); }
+
+    // Rank medal / number
+    const medals = ['🥇','🥈','🥉'];
+    ctx.font = i<3 ? '16px serif' : '13px ui-sans-serif,sans-serif';
+    ctx.textAlign='left';
+    ctx.fillStyle = i<3 ? '#fff' : 'rgba(255,255,255,0.55)';
+    ctx.fillText(i<3 ? medals[i] : `${i+1}`, col.rank, ry);
+
+    // Name (cyan if it's the current player)
+    ctx.font = 'bold 13px ui-sans-serif,sans-serif';
+    ctx.fillStyle = isMe ? '#44ff88' : (e.color || '#eee');
+    ctx.fillText((e.username || 'unknown').slice(0,18), col.name, ry);
+
+    // Score highlighted
+    ctx.fillStyle = i===0 ? '#ffd700' : 'rgba(255,255,255,0.85)';
+    ctx.fillText(e.score.toLocaleString(), col.score, ry);
+
+    // Wave, kills, level
+    ctx.fillStyle='rgba(255,255,255,0.6)'; ctx.font='12px ui-sans-serif,sans-serif';
+    ctx.fillText(e.wave  ?? '-', col.wave,  ry);
+    ctx.fillText(e.kills ?? '-', col.kills, ry);
+    ctx.fillText(e.level ?? '-', col.lv,    ry);
+  }
+
+  // Footnote
+  ctx.fillStyle='rgba(255,255,255,0.25)'; ctx.font='10px ui-sans-serif,sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText('Score = wave×500 + kills×50 + level×100  ·  includes live players in this room', cx, py+panelH-8);
+
+  ctx.restore();
+}
+
 function drawPauseScreen() {
   // Dim the frozen game world behind the overlay
   ctx.fillStyle='rgba(8,3,18,0.72)'; ctx.fillRect(0,0,W,H);
@@ -972,14 +1113,17 @@ function drawPauseScreen() {
   ctx.textAlign='center';
   ctx.fillText(`Wave ${wave}  ·  Level ${player.level}  ·  ${kills} kills`, W/2, H/2-36);
 
-  // Buttons
-  drawButton('RESUME',   W/2, H/2+10, '#44ff88');
-  drawButton('END GAME', W/2, H/2+78, '#ff4455');
+  // Buttons (left of centre)
+  drawButton('RESUME',   W/2-200, H/2+10, '#44ff88');
+  drawButton('END GAME', W/2-200, H/2+78, '#ff4455');
 
   // Hint
   ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.font='13px ui-sans-serif,sans-serif';
   ctx.textAlign='center';
-  ctx.fillText('Press Esc to resume', W/2, H/2+126);
+  ctx.fillText('Press Esc to resume', W/2-200, H/2+126);
+
+  // Leaderboard (right of centre)
+  drawLeaderboard(W/2+260, H/2, 'LEADERBOARD');
 }
 
 function drawDeadScreen() {
@@ -988,9 +1132,12 @@ function drawDeadScreen() {
   ctx.fillStyle='#ff4455';ctx.font='bold 72px ui-sans-serif,sans-serif';ctx.textAlign='center';
   ctx.fillText('GAME OVER',W/2,H/2-70);ctx.restore();
   ctx.fillStyle='rgba(255,255,255,0.75)';ctx.font='20px ui-sans-serif,sans-serif';ctx.textAlign='center';
-  ctx.fillText(`Level ${player.level}  ·  ${kills} kills  ·  Wave ${wave}`,W/2,H/2-18);
-  drawButton('PLAY AGAIN',W/2,H/2+50,  '#44ff88');
-  drawButton('MAIN MENU', W/2,H/2+116, '#aaaaaa');
+  const sc = calcScore(wave, kills, player.level);
+  ctx.fillStyle='rgba(255,255,255,0.75)';ctx.font='20px ui-sans-serif,sans-serif';ctx.textAlign='center';
+  ctx.fillText(`Level ${player.level}  ·  ${kills} kills  ·  Wave ${wave}  ·  Score ${sc.toLocaleString()}`,W/2,H/2-18);
+  drawButton('PLAY AGAIN',W/2-200, H/2+50,  '#44ff88');
+  drawButton('MAIN MENU', W/2-200, H/2+116, '#aaaaaa');
+  drawLeaderboard(W/2+260, H/2+30, 'LEADERBOARD');
 }
 
 // ── Render ────────────────────────────────────────────────────────
@@ -1017,6 +1164,7 @@ function render() {
     drawHUD();
   } else if (state==='menu') {
     drawMenuOverlay();
+    if (showScores) drawLeaderboard(W/2, H*0.5, 'LEADERBOARD');
   } else if (state==='paused') {
     drawPauseScreen();
   } else if (state==='dead') {

@@ -127,9 +127,9 @@ const BUFF_DEFS = [
 
 // ── Enemy templates ───────────────────────────────────────────────
 const ETYPES = [
-  {kind:'Runner',  maxHp:30,  spd:2.2,dmg:6,  r:10,clr:'#ff4455',xp:10},
-  {kind:'Brute',   maxHp:110, spd:1.0,dmg:18, r:18,clr:'#ff8800',xp:30},
-  {kind:'Speeder', maxHp:22,  spd:4.2,dmg:5,  r:8, clr:'#ff44cc',xp:15},
+  {kind:'Runner',  maxHp:60,  spd:2.4, dmg:18, r:10, clr:'#ff4455', xp:10}, // solid baseline
+  {kind:'Brute',   maxHp:220, spd:0.9, dmg:45, r:18, clr:'#ff8800', xp:30}, // slow, devastating
+  {kind:'Speeder', maxHp:35,  spd:5.2, dmg:8,  r:8,  clr:'#ff44cc', xp:15}, // fast but light hits
 ];
 function pickType(wave) {
   if (wave <= 2) return ETYPES[0];
@@ -147,7 +147,7 @@ let t = 0, lastBroad = 0;
 
 // Player is always live so lobby movement works
 let player = {
-  x: W / 2, y: H / 2 - 80, r: PR, speed: 4,
+  x: W / 2, y: H / 2 - 80, r: PR, speed: 6,
   color: '#' + incoming.color, angle: 0,
   hp: 100, maxHp: 100, level: 1, xp: 0, iframes: 0,
   buffs: {bouncing:0, splash:0, spread:0, rapid:0},
@@ -194,7 +194,7 @@ function spawnWave() {
     const bHp   = Math.round(800 * Math.pow(1.35, tier) * hpMult);
     const pos   = randomEdgePos();
     boss = {
-      ...pos, r:32, spd:1.8, dmg:22,
+      ...pos, r:32, spd:1.8, dmg:70,
       hp:bHp, maxHp:bHp, clr:'#cc0033', xp:300+wave*30,
       atkCd:2.5, atkIdx:0, charging:false, chargeDur:0,
       chargeDir:{x:0,y:1}, enraged:false, angle:0,

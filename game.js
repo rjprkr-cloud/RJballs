@@ -423,7 +423,10 @@ addEventListener('keydown', e => {
     else if (state === 'paused') { state = 'playing'; musicPlay(); }
     updateCursor();
   }
-  if (e.key === '=' && state === 'playing') triggerBomb();
+  if ((e.key === '=' || e.key === '+') && state === 'playing') {
+    const def = BUFF_DEFS.find(d => d.id === 'bomb');
+    if (def) buffItems.push({ x: player.x + 50, y: player.y, def, life: 30, pulse: 0 });
+  }
 });
 addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 

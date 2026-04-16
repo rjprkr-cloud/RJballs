@@ -148,9 +148,9 @@ let t = 0, lastBroad = 0;
 
 // Player is always live so lobby movement works
 let player = {
-  x: W / 2, y: H / 2 - 80, r: PR, speed: 6,
+  x: W / 2, y: H / 2 - 80, r: PR, speed: 10,
   color: '#' + incoming.color, angle: 0,
-  hp: 100, maxHp: 100, level: 1, xp: 0, iframes: 0,
+  hp: 200, maxHp: 200, level: 1, xp: 0, iframes: 0,
   buffs: {bouncing:0, splash:0, spread:0, rapid:0},
 };
 
@@ -158,7 +158,7 @@ function showNotif(msg, clr='#ffdd44') { notif=msg; notifT=2.8; notifClr=clr; }
 
 function initGame() {
   player.x = W/2; player.y = H/2;
-  player.hp = 100; player.maxHp = 100;
+  player.hp = 200; player.maxHp = 200;
   player.level = 1; player.xp = 0; player.iframes = 0;
   player.buffs = {bouncing:0,splash:0,spread:0,rapid:0};
   bullets=[]; enemyBullets=[]; enemies=[];
@@ -711,17 +711,17 @@ function drawWalkPads() {
     ctx.shadowColor=pad.clr; ctx.shadowBlur=hovered ? 30+pulse*20 : 14+pulse*8;
     ctx.globalAlpha=0.12+pulse*0.06+(hovered?0.12:0);
     ctx.fillStyle=pad.clr;
-    ctx.beginPath();ctx.roundRect(rx,ry,pad.w,pad.h,12);ctx.fill();
+    ctx.beginPath();ctx.rect(rx,ry,pad.w,pad.h);ctx.fill();
 
     // Border
     ctx.globalAlpha=0.6+(hovered?0.3:0); ctx.shadowBlur=6;
     ctx.strokeStyle=pad.clr; ctx.lineWidth=2;
-    ctx.beginPath();ctx.roundRect(rx,ry,pad.w,pad.h,12);ctx.stroke();
+    ctx.beginPath();ctx.rect(rx,ry,pad.w,pad.h);ctx.stroke();
 
     // Progress fill
     if (prog>0) {
       ctx.globalAlpha=0.28;ctx.fillStyle=pad.clr;
-      ctx.beginPath();ctx.roundRect(rx,ry,pad.w*prog,pad.h,12);ctx.fill();
+      ctx.beginPath();ctx.rect(rx,ry,pad.w*prog,pad.h);ctx.fill();
     }
 
     // Label
@@ -954,7 +954,7 @@ function drawHUD() {
 function drawButton(label,cx,cy,glowColor) {
   ctx.save();ctx.shadowColor=glowColor;ctx.shadowBlur=20;
   ctx.fillStyle='rgba(10,5,20,0.92)';ctx.strokeStyle=glowColor;ctx.lineWidth=2;
-  ctx.beginPath();ctx.roundRect(cx-BTN_W/2,cy-BTN_H/2,BTN_W,BTN_H,8);ctx.fill();ctx.stroke();
+  ctx.beginPath();ctx.rect(cx-BTN_W/2,cy-BTN_H/2,BTN_W,BTN_H);ctx.fill();ctx.stroke();
   ctx.fillStyle=glowColor;ctx.font='bold 18px ui-sans-serif,sans-serif';
   ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(label,cx,cy);
   ctx.restore();ctx.textBaseline='alphabetic';
@@ -1022,15 +1022,14 @@ function drawLeaderboard(cx, cy, title='LEADERBOARD') {
   // Panel background
   ctx.fillStyle='rgba(6,2,16,0.94)';
   ctx.strokeStyle='#44ddff'; ctx.lineWidth=2;
-  ctx.shadowColor='#44ddff'; ctx.shadowBlur=18;
-  ctx.beginPath(); ctx.roundRect(px, py, panelW, panelH, 14);
-  ctx.fill(); ctx.stroke();
   ctx.shadowBlur=0;
+  ctx.beginPath(); ctx.rect(px, py, panelW, panelH);
+  ctx.fill(); ctx.stroke();
 
   // Title
-  ctx.fillStyle='#44ddff'; ctx.shadowColor='#44ddff'; ctx.shadowBlur=12;
+  ctx.fillStyle='#44ddff';
   ctx.font='bold 22px ui-sans-serif,sans-serif'; ctx.textAlign='center';
-  ctx.fillText(title, cx, py+38); ctx.shadowBlur=0;
+  ctx.fillText(title, cx, py+38);
 
   // Column headers
   ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.font='11px ui-sans-serif,sans-serif';

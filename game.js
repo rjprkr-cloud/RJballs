@@ -574,12 +574,12 @@ function hitBtn(mx,my,bx,by) {
 // Click only used for dead screen now
 function handleClick(mx,my) {
   if (state==='paused') {
-    if (hitBtn(mx,my,W/2-200,H/2+10))  { state='playing'; musicPlay();  updateCursor(); }
-    if (hitBtn(mx,my,W/2-200,H/2+78))  { movePortals(true); state='menu'; musicPause(); updateCursor(); }
+    if (hitBtn(mx,my,W/2-200,H/2+18))  { state='playing'; musicPlay();  updateCursor(); }
+    if (hitBtn(mx,my,W/2-200,H/2+90))  { movePortals(true); state='menu'; musicPause(); updateCursor(); }
   }
   if (state==='dead') {
-    if (hitBtn(mx,my,W/2-200,H/2+50))  { initGame(); state='playing'; musicPlay();  updateCursor(); }
-    if (hitBtn(mx,my,W/2-200,H/2+116)) { movePortals(true); state='menu'; musicPause(); updateCursor(); }
+    if (hitBtn(mx,my,W/2-200,H/2+58))  { initGame(); state='playing'; musicPlay();  updateCursor(); }
+    if (hitBtn(mx,my,W/2-200,H/2+124)) { movePortals(true); state='menu'; musicPause(); updateCursor(); }
   }
 }
 
@@ -1493,7 +1493,7 @@ function drawWaveCountdown() {
 // ── HUD ───────────────────────────────────────────────────────────
 function drawHUD() {
   const w=getWeapon(player.level);
-  const bx=WALL+12,by=H-WALL-58,bw=230,bh=14;
+  const bx=WALL+12,by=H-WALL-62,bw=230,bh=14;
 
   ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(bx,by,bw,bh);
   ctx.fillStyle=player.iframes>0?'#ff8899':'#ff4455';ctx.fillRect(bx,by,bw*(player.hp/player.maxHp),bh);
@@ -1501,13 +1501,13 @@ function drawHUD() {
   ctx.fillStyle='#fff';ctx.font='20px ui-sans-serif,sans-serif';ctx.textAlign='left';
   ctx.fillText(`HP  ${Math.ceil(player.hp)} / ${player.maxHp}`,bx+4,by+11);
 
-  const xby=by+bh+4;
+  const xby=by+bh+8;
   ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(bx,xby,bw,bh);
   ctx.fillStyle='#aa44ff';ctx.fillRect(bx,xby,bw*(player.xp/xpToNext(player.level)),bh);
   ctx.strokeStyle='#cc88ff';ctx.lineWidth=1;ctx.strokeRect(bx,xby,bw,bh);
   ctx.fillStyle='#fff';ctx.fillText(`LV ${player.level}  XP ${player.xp}/${xpToNext(player.level)}`,bx+4,xby+11);
 
-  const wby=xby+bh+7;
+  const wby=xby+bh+12;
   ctx.fillStyle=w.clr;ctx.shadowColor=w.clr;ctx.shadowBlur=6;ctx.font='bold 22px ui-sans-serif,sans-serif';
   ctx.fillText(`⚔ ${w.name}`,bx,wby+12);ctx.shadowBlur=0;
   const next=WEAPONS.find(wp=>wp.lv>player.level);
@@ -1530,11 +1530,11 @@ function drawHUD() {
   }
 
   ctx.fillStyle='rgba(255,255,255,0.8)';ctx.font='bold 24px ui-sans-serif,sans-serif';ctx.textAlign='right';
-  ctx.fillText(boss?`BOSS ${Math.ceil(boss.hp*100/boss.maxHp)}%`:`Wave ${wave}`,W-WALL-12,WALL+22);
-  ctx.fillText(`Kills ${kills}`,W-WALL-12,WALL+40);
-  if(!boss)ctx.fillText(`${enemies.length} left`,W-WALL-12,WALL+58);
+  ctx.fillText(boss?`BOSS ${Math.ceil(boss.hp*100/boss.maxHp)}%`:`Wave ${wave}`,W-WALL-12,WALL+26);
+  ctx.fillText(`Kills ${kills}`,W-WALL-12,WALL+52);
+  if(!boss)ctx.fillText(`${enemies.length} left`,W-WALL-12,WALL+78);
   const pCount=peers.size+1;
-  if(pCount>1){ctx.fillStyle='#00ffcc';ctx.fillText(`${pCount}/${MAX_PLAYERS} co-op`,W-WALL-12,WALL+76);}
+  if(pCount>1){ctx.fillStyle='#00ffcc';ctx.fillText(`${pCount}/${MAX_PLAYERS} co-op`,W-WALL-12,WALL+104);}
 
   drawWaveCountdown();
 
@@ -1731,22 +1731,22 @@ function drawPauseScreen() {
   ctx.save();
   ctx.shadowColor='#c64bff'; ctx.shadowBlur=28;
   ctx.fillStyle='#f4f4ff'; ctx.font='bold 110px ui-sans-serif,sans-serif';
-  ctx.textAlign='center'; ctx.fillText('PAUSED', W/2, H/2-90);
+  ctx.textAlign='center'; ctx.fillText('PAUSED', W/2, H/2-100);
   ctx.restore();
 
   // Stats line
   ctx.fillStyle='rgba(255,255,255,0.55)'; ctx.font='30px ui-sans-serif,sans-serif';
   ctx.textAlign='center';
-  ctx.fillText(`Wave ${wave}  ·  Level ${player.level}  ·  ${kills} kills`, W/2, H/2-36);
+  ctx.fillText(`Wave ${wave}  ·  Level ${player.level}  ·  ${kills} kills`, W/2, H/2-46);
 
   // Buttons (left of centre)
-  drawButton('RESUME',   W/2-200, H/2+10, '#44ff88');
-  drawButton('END GAME', W/2-200, H/2+78, '#ff4455');
+  drawButton('RESUME',   W/2-200, H/2+18, '#44ff88');
+  drawButton('END GAME', W/2-200, H/2+90, '#ff4455');
 
   // Hint
   ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.font='22px ui-sans-serif,sans-serif';
   ctx.textAlign='center';
-  ctx.fillText('Press Esc to resume', W/2-200, H/2+126);
+  ctx.fillText('Press Esc to resume', W/2-200, H/2+140);
 
   // Volume slider
   const vx=VOL_CX-VOL_W/2, vw=VOL_W, vy=VOL_Y;
@@ -1769,13 +1769,13 @@ function drawDeadScreen() {
   ctx.fillStyle='rgba(8,3,18,0.88)';ctx.fillRect(0,0,W,H);
   ctx.save();ctx.shadowColor='#ff4455';ctx.shadowBlur=30;
   ctx.fillStyle='#ff4455';ctx.font='bold 110px ui-sans-serif,sans-serif';ctx.textAlign='center';
-  ctx.fillText('GAME OVER',W/2,H/2-70);ctx.restore();
+  ctx.fillText('GAME OVER',W/2,H/2-80);ctx.restore();
   ctx.fillStyle='rgba(255,255,255,0.75)';ctx.font='32px ui-sans-serif,sans-serif';ctx.textAlign='center';
   const sc = calcScore(wave, kills, player.level);
   ctx.fillStyle='rgba(255,255,255,0.75)';ctx.font='32px ui-sans-serif,sans-serif';ctx.textAlign='center';
-  ctx.fillText(`Level ${player.level}  ·  ${kills} kills  ·  Wave ${wave}  ·  Score ${sc.toLocaleString()}`,W/2,H/2-18);
-  drawButton('PLAY AGAIN',W/2-200, H/2+50,  '#44ff88');
-  drawButton('MAIN MENU', W/2-200, H/2+116, '#aaaaaa');
+  ctx.fillText(`Level ${player.level}  ·  ${kills} kills  ·  Wave ${wave}  ·  Score ${sc.toLocaleString()}`,W/2,H/2-26);
+  drawButton('PLAY AGAIN',W/2-200, H/2+58,  '#44ff88');
+  drawButton('MAIN MENU', W/2-200, H/2+124, '#aaaaaa');
   drawLeaderboard(W/2+260, H/2+160, 'LEADERBOARD');
 }
 

@@ -171,11 +171,11 @@ const xpToNext  = lv => 40 + lv * 30;
 
 // ── Buff items ────────────────────────────────────────────────────
 const BUFF_DEFS = [
-  {id:'bouncing', name:'BOUNCE',   dur:20, clr:'#44ffcc'},
-  {id:'splash',   name:'SPLASH',   dur:20, clr:'#ff8844'},
-  {id:'spread',   name:'SPREAD',   dur:20, clr:'#4488ff'},
-  {id:'rapid',    name:'RAPID',    dur:15, clr:'#ffff44'},
-  {id:'ricochet', name:'RICOCHET', dur:20, clr:'#ff44aa'},
+  {id:'bouncing', name:'BOUNCE',   dur:45, clr:'#44ffcc'},
+  {id:'splash',   name:'SPLASH',   dur:45, clr:'#ff8844'},
+  {id:'spread',   name:'SPREAD',   dur:45, clr:'#4488ff'},
+  {id:'rapid',    name:'RAPID',    dur:35, clr:'#ffff44'},
+  {id:'ricochet', name:'RICOCHET', dur:45, clr:'#ff44aa'},
   {id:'bomb',     name:'BOMB',     dur:0,  clr:'#ff8800', instant:true},
 ];
 

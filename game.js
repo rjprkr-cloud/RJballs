@@ -122,11 +122,11 @@ const PAD_HOLD = 1.0; // seconds to hold before activating
 // ── Weapons ───────────────────────────────────────────────────────
 const WEAPONS = [
   {name:'Pistol',  lv:1,  dmg:15, spd:9,  cd:0.42,n:1,spr:0,    pierce:false,aoe:0,  clr:'#ffdd44',br:4},
-  {name:'Dual Pistols', lv:2, dmg:15, spd:9, cd:0.28,n:2,spr:0.12,pierce:false,aoe:0,  clr:'#ffee88',br:4},
-  {name:'Shotgun', lv:4,  dmg:12, spd:9,  cd:0.70,n:5,spr:0.32, pierce:false,aoe:0,  clr:'#ff8833',br:4},
-  {name:'SMG',     lv:6,  dmg:9,  spd:13, cd:0.09,n:1,spr:0.10, pierce:false,aoe:0,  clr:'#44aaff',br:3},
-  {name:'Rocket',  lv:8,  dmg:90, spd:6,  cd:1.10,n:1,spr:0,    pierce:false,aoe:130,clr:'#ff4444',br:6},
-  {name:'Plasma',  lv:11, dmg:40, spd:14, cd:0.45,n:1,spr:0,    pierce:true, aoe:0,  clr:'#dd44ff',br:5, beam:true},
+  {name:'Dual Pistols', lv:5, dmg:15, spd:9, cd:0.28,n:2,spr:0.12,pierce:false,aoe:0,  clr:'#ffee88',br:4},
+  {name:'Shotgun', lv:9,  dmg:12, spd:9,  cd:0.70,n:5,spr:0.32, pierce:false,aoe:0,  clr:'#ff8833',br:4},
+  {name:'SMG',     lv:13, dmg:9,  spd:13, cd:0.09,n:1,spr:0.10, pierce:false,aoe:0,  clr:'#44aaff',br:3},
+  {name:'Rocket',  lv:17, dmg:90, spd:6,  cd:1.10,n:1,spr:0,    pierce:false,aoe:130,clr:'#ff4444',br:6},
+  {name:'Plasma',  lv:21, dmg:40, spd:14, cd:0.45,n:1,spr:0,    pierce:true, aoe:0,  clr:'#dd44ff',br:5, beam:true},
 ];
 const getWeapon = lv => [...WEAPONS].reverse().find(w => lv >= w.lv) ?? WEAPONS[0];
 const xpToNext  = lv => 40 + lv * 30;

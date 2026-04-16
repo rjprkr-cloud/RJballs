@@ -178,14 +178,31 @@ const BUFF_DEFS = [
 
 // ── Enemy templates ───────────────────────────────────────────────
 const ETYPES = [
-  {kind:'Runner',  maxHp:60,  spd:2.4, dmg:36, r:10, clr:'#ff4455', xp:10}, // solid baseline
-  {kind:'Brute',   maxHp:220, spd:0.9, dmg:90, r:18, clr:'#ff8800', xp:30}, // slow, devastating
-  {kind:'Speeder', maxHp:35,  spd:5.2, dmg:16, r:8,  clr:'#ff44cc', xp:15}, // fast but light hits
+  // ── Regular enemies (all zones)
+  {kind:'Runner',  maxHp:60,  spd:2.4, dmg:36, r:10, clr:'#ff4455', xp:10},
+  {kind:'Brute',   maxHp:220, spd:0.9, dmg:90, r:18, clr:'#ff8800', xp:30},
+  {kind:'Speeder', maxHp:35,  spd:5.2, dmg:16, r:8,  clr:'#ff44cc', xp:15},
+  // ── Zone 1: Toxic Zone — Spitter (ranged acid shots)
+  {kind:'Spitter', maxHp:70,  spd:1.8, dmg:18, r:11, clr:'#44ff44', xp:22, zone:1, atkCd:3.0},
+  // ── Zone 2: Volcanic — Ember (explodes violently on death)
+  {kind:'Ember',   maxHp:160, spd:1.4, dmg:40, r:15, clr:'#ff6600', xp:28, zone:2},
+  // ── Zone 3: Arctic — Glacial (ranged ice shards that slow the player)
+  {kind:'Glacial', maxHp:55,  spd:2.8, dmg:12, r:10, clr:'#88ddff', xp:22, zone:3, atkCd:3.5},
+  // ── Zone 4: Ancient — Phantom (teleports + 35% bullet dodge)
+  {kind:'Phantom', maxHp:85,  spd:2.6, dmg:22, r:11, clr:'#ffcc44', xp:32, zone:4, atkCd:3.5},
+  // ── Zone 5: The Void — Wraith (phases through furniture)
+  {kind:'Wraith',  maxHp:95,  spd:3.2, dmg:28, r:12, clr:'#cc99ff', xp:38, zone:5},
 ];
+const REGULAR_ETYPES = ETYPES.slice(0,3);
 function pickType(wave) {
-  if (wave <= 2) return ETYPES[0];
-  if (wave <= 4) return Math.random() < 0.35 ? ETYPES[1] : ETYPES[0];
-  return ETYPES[Math.floor(Math.random() * ETYPES.length)];
+  const zoneIdx = Math.min(Math.floor(wave/5), ZONES.length-1);
+  const zonePool = ETYPES.filter(e => e.zone === zoneIdx);
+  // 40% chance to spawn the zone-specific enemy when one exists
+  if (zonePool.length && Math.random() < 0.40)
+    return zonePool[Math.floor(Math.random()*zonePool.length)];
+  if (wave <= 2) return REGULAR_ETYPES[0];
+  if (wave <= 4) return Math.random()<0.35 ? REGULAR_ETYPES[1] : REGULAR_ETYPES[0];
+  return REGULAR_ETYPES[Math.floor(Math.random()*REGULAR_ETYPES.length)];
 }
 
 // ── Game state ────────────────────────────────────────────────────
@@ -200,7 +217,7 @@ let t = 0, lastBroad = 0;
 let player = {
   x: W / 2, y: H / 2 - 80, r: PR, speed: 10,
   color: '#' + incoming.color, angle: 0,
-  hp: 200, maxHp: 200, level: 1, xp: 0, iframes: 0,
+  hp: 200, maxHp: 200, level: 1, xp: 0, iframes: 0, slowTimer: 0,
   buffs: {bouncing:0, splash:0, spread:0, rapid:0, ricochet:0},
 };
 
@@ -209,8 +226,8 @@ function showNotif(msg, clr='#ffdd44') { notif=msg; notifT=2.8; notifClr=clr; }
 function initGame() {
   player.x = W/2; player.y = H/2;
   player.hp = 200; player.maxHp = 200;
-  player.level = 1; player.xp = 0; player.iframes = 0;
-  player.buffs = {bouncing:0,splash:0,spread:0,rapid:0};
+  player.level = 1; player.xp = 0; player.iframes = 0; player.slowTimer = 0;
+  player.buffs = {bouncing:0,splash:0,spread:0,rapid:0,ricochet:0};
   bullets=[]; enemyBullets=[]; enemies=[];
   boss=null; explosions=[]; buffItems=[]; beams=[];
   wave=0; waveTimer=WAVE_DELAY; shotCd=0; kills=0; buffSpawnTimer=25;
@@ -561,7 +578,9 @@ function update(dt) {
     if (keys['a']||keys['arrowleft'])  dx-=1;
     if (keys['d']||keys['arrowright']) dx+=1;
     if (dx&&dy){dx*=0.707;dy*=0.707;}
-    dx*=player.speed; dy*=player.speed;
+    player.slowTimer=Math.max(0,player.slowTimer-dt);
+    const speedMult = player.slowTimer>0 ? 0.3 : 1;
+    dx*=player.speed*speedMult; dy*=player.speed*speedMult;
     if (dx||dy) player.angle=Math.atan2(dx,-dy);
     else if (state==='playing') player.angle=Math.atan2(mouseX-player.x,-(mouseY-player.y));
 
@@ -644,6 +663,14 @@ function update(dt) {
       if (b.dead) continue;
       if (b.ricocheted?.has(e)) continue; // already hit this enemy this chain
       if (Math.hypot(b.x-e.x,b.y-e.y)<e.r+b.r) {
+        // Phantom dodge — 35% chance to blink away, consuming the bullet
+        if (e.kind==='Phantom' && Math.random()<0.35) {
+          const pa=Math.random()*Math.PI*2, pd=120+Math.random()*100;
+          e.x=Math.max(WALL+e.r+5,Math.min(W-WALL-e.r-5, player.x+Math.cos(pa)*pd));
+          e.y=Math.max(WALL+e.r+5,Math.min(H-WALL-e.r-5, player.y+Math.sin(pa)*pd));
+          if(!b.pierce) b.dead=true;
+          continue;
+        }
         e.hp-=b.dmg;
         if (b.aoe>0){
           for (const o of enemies) if(Math.hypot(b.x-o.x,b.y-o.y)<b.aoe) o.hp-=b.dmg*0.5;
@@ -735,20 +762,61 @@ function update(dt) {
   for (const e of enemies) {
     const edx=player.x-e.x, edy=player.y-e.y, ed=Math.hypot(edx,edy)||1;
     let ex=e.x+(edx/ed)*e.spd, ey=e.y+(edy/ed)*e.spd;
-    for (const r of SOLID){let p=pushOut(ex,e.y,e.r,r);ex=p.x;}
-    for (const r of SOLID){let p=pushOut(ex,ey,e.r,r);ey=p.y;}
+    // Wraith phases through furniture — only wall collision
+    const colSet = e.kind==='Wraith' ? WALLS : SOLID;
+    for (const r of colSet){let p=pushOut(ex,e.y,e.r,r);ex=p.x;}
+    for (const r of colSet){let p=pushOut(ex,ey,e.r,r);ey=p.y;}
     for (const o of enemies){
       if(o===e)continue;
       const ox=ex-o.x,oy=ey-o.y,od=Math.hypot(ox,oy)||1,ov=e.r+o.r-od;
       if(ov>0){ex+=ox/od*ov*0.5;ey+=oy/od*ov*0.5;}
     }
     e.x=ex;e.y=ey;e.angle=Math.atan2(edy,edx);
+
+    // ── Zone enemy special abilities
+    if (e.atkCd !== undefined) {
+      e.atkCd = Math.max(0, e.atkCd-dt);
+      if (e.atkCd === 0) {
+        const a = Math.atan2(player.y-e.y, player.x-e.x);
+        if (e.kind==='Spitter') {
+          // Lob slow acid glob
+          enemyBullets.push({x:e.x,y:e.y,vx:Math.cos(a)*3.2,vy:Math.sin(a)*3.2,
+            dmg:20,r:8,life:4.5,dead:false,clr:'#44ff44'});
+          e.atkCd = 3.0;
+        } else if (e.kind==='Glacial') {
+          // Fire ice shard that slows on hit
+          enemyBullets.push({x:e.x,y:e.y,vx:Math.cos(a)*5,vy:Math.sin(a)*5,
+            dmg:10,r:7,life:4,dead:false,clr:'#88ddff',slow:2.5});
+          e.atkCd = 3.5;
+        } else if (e.kind==='Phantom') {
+          // Blink to unexpected angle near player
+          const pa=Math.random()*Math.PI*2, pd=130+Math.random()*110;
+          e.x=Math.max(WALL+e.r+5,Math.min(W-WALL-e.r-5, player.x+Math.cos(pa)*pd));
+          e.y=Math.max(WALL+e.r+5,Math.min(H-WALL-e.r-5, player.y+Math.sin(pa)*pd));
+          e.atkCd = 3.5;
+        }
+      }
+    }
+
     if(player.iframes<=0&&Math.hypot(player.x-e.x,player.y-e.y)<PR+e.r){
       player.hp-=e.dmg*dt*2.5*enemyDmgMult();player.iframes=0.55;
+      if (e.kind==='Glacial') player.slowTimer=2.5; // freeze on contact
     }
   }
   player.iframes=Math.max(0,player.iframes-dt);
-  enemies=enemies.filter(e=>{if(e.hp<=0){gainXP(e.xp);kills++;return false;}return true;});
+  enemies=enemies.filter(e=>{
+    if(e.hp<=0){
+      gainXP(e.xp);kills++;
+      if (e.kind==='Ember') {
+        // Death explosion damages player if nearby
+        createExplosion(e.x,e.y,100,'#ff6600');
+        if (Math.hypot(player.x-e.x,player.y-e.y)<100)
+          player.hp=Math.max(0, player.hp-55*enemyDmgMult());
+      }
+      return false;
+    }
+    return true;
+  });
 
   // ── Enemy bullets
   for (const b of enemyBullets) {
@@ -756,6 +824,7 @@ function update(dt) {
     if(b.life<=0||b.x<WALL||b.x>W-WALL||b.y<WALL||b.y>H-WALL){b.dead=true;continue;}
     if(player.iframes<=0&&Math.hypot(b.x-player.x,b.y-player.y)<PR+b.r){
       player.hp-=b.dmg*enemyDmgMult();player.iframes=0.4;b.dead=true;
+      if(b.slow) player.slowTimer=b.slow;
     }
   }
   enemyBullets=enemyBullets.filter(b=>!b.dead);
@@ -935,8 +1004,51 @@ function drawEnemies() {
   ctx.restore();
   // Coloured core + dot + HP bar
   for(const e of enemies){
-    ctx.fillStyle=e.clr; ctx.globalAlpha=1;
+    // Zone enemy: special alpha/outline before the fill
+    if (e.kind==='Wraith') {
+      // Phasing shimmer — pulse opacity
+      ctx.globalAlpha=0.55+Math.sin(t*4+e.x)*0.3;
+    } else if (e.kind==='Phantom') {
+      ctx.globalAlpha=0.75+Math.sin(t*5)*0.2;
+    } else {
+      ctx.globalAlpha=1;
+    }
+    ctx.fillStyle=e.clr;
     ctx.beginPath();ctx.arc(e.x,e.y,e.r,0,Math.PI*2);ctx.fill();
+
+    // Ember: inner fire core
+    if (e.kind==='Ember') {
+      ctx.globalAlpha=0.55+Math.sin(t*6)*0.3;
+      ctx.fillStyle='#ffdd00';
+      ctx.beginPath();ctx.arc(e.x,e.y,e.r*0.5,0,Math.PI*2);ctx.fill();
+    }
+    // Spitter: drip ring
+    if (e.kind==='Spitter') {
+      ctx.globalAlpha=0.4; ctx.strokeStyle='#00ff44'; ctx.lineWidth=2;
+      ctx.setLineDash([4,4]);
+      ctx.beginPath();ctx.arc(e.x,e.y,e.r+5,0,Math.PI*2);ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    // Glacial: icy shard ring
+    if (e.kind==='Glacial') {
+      ctx.globalAlpha=0.5; ctx.strokeStyle='#aaeeff'; ctx.lineWidth=1.5;
+      for (let i=0;i<6;i++){
+        const sa=(i/6)*Math.PI*2+t;
+        ctx.beginPath();
+        ctx.moveTo(e.x+Math.cos(sa)*(e.r+2),e.y+Math.sin(sa)*(e.r+2));
+        ctx.lineTo(e.x+Math.cos(sa)*(e.r+8),e.y+Math.sin(sa)*(e.r+8));
+        ctx.stroke();
+      }
+    }
+    // Wraith: dashed ghost border
+    if (e.kind==='Wraith') {
+      ctx.globalAlpha=0.6; ctx.strokeStyle='#ffffff'; ctx.lineWidth=1.5;
+      ctx.setLineDash([5,5]);
+      ctx.beginPath();ctx.arc(e.x,e.y,e.r+3,0,Math.PI*2);ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    ctx.globalAlpha=1;
     const dotX=e.x+Math.cos(e.angle)*(e.r-4),dotY=e.y+Math.sin(e.angle)*(e.r-4);
     ctx.fillStyle='rgba(255,255,255,0.6)';
     ctx.beginPath();ctx.arc(dotX,dotY,2.5,0,Math.PI*2);ctx.fill();
@@ -1242,7 +1354,7 @@ function drawMenuOverlay() {
   for(const p of peers.values()) if(p) drawPeer(p);
 
   // Player in lobby
-  { const pw=getWeapon(player.level); drawPlayerAvatar(player.x,player.y,player.angle,player.color,1,pw.name,pw.clr); }
+  { const pw=getWeapon(player.level); const col=player.slowTimer>0?'#88ddff':player.color; drawPlayerAvatar(player.x,player.y,player.angle,col,1,pw.name,pw.clr); }
 
   if(notifT>0){
     ctx.save();ctx.globalAlpha=Math.min(1,notifT);ctx.fillStyle=notifClr;ctx.shadowColor=notifClr;ctx.shadowBlur=18;
@@ -1402,7 +1514,7 @@ function render() {
     drawBoss(boss);
     for(const p of peers.values()) if(p) drawPeer(p);
     if(player.iframes<=0||Math.floor(t*10)%2===0)
-      { const pw=getWeapon(player.level); drawPlayerAvatar(player.x,player.y,player.angle,player.color,1,pw.name,pw.clr); }
+      { const pw=getWeapon(player.level); const col=player.slowTimer>0?'#88ddff':player.color; drawPlayerAvatar(player.x,player.y,player.angle,col,1,pw.name,pw.clr); }
     drawHUD();
   } else if (state==='menu') {
     drawMenuOverlay();

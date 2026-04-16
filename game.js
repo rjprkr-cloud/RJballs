@@ -467,7 +467,7 @@ function checkPortals() {
 
 // ── Leaderboard ───────────────────────────────────────────────────
 const LB_KEY = 'arena-leaderboard-v1';
-const MAX_LB  = 20;
+const MAX_LB  = 10;
 
 function lbLoad() {
   try { return JSON.parse(localStorage.getItem(LB_KEY) || '[]'); } catch { return []; }
@@ -1407,7 +1407,7 @@ function drawMenuOverlay() {
 function drawLeaderboard(cx, cy, title='LEADERBOARD') {
   const entries = mergedLeaderboard();
   const panelW  = 560, rowH = 36;
-  const rows    = Math.min(entries.length, 12);
+  const rows    = Math.min(entries.length, 10);
   const panelH  = 80 + rows * rowH + 20;
   const px = cx - panelW/2, py = cy - panelH/2;
 

@@ -32,7 +32,11 @@ addEventListener('keydown',   _unlockAudio, { once: true });
 // ── Portal protocol ───────────────────────────────────────────────
 const incoming   = Portal.readPortalParams();
 document.getElementById('username').textContent = incoming.username;
-const nextTarget = await Portal.pickPortalTarget();
+// 3-second timeout so a slow/hanging registry fetch never blocks the game loop
+const nextTarget = await Promise.race([
+  Portal.pickPortalTarget(),
+  new Promise(resolve => setTimeout(() => resolve(null), 3000)),
+]);
 
 // ── Constants ─────────────────────────────────────────────────────
 const WALL = 36, TILE = 48, PR = 13;
@@ -70,7 +74,7 @@ const ZONES = [
     pillarFill:'#0c0c22', pillarStroke:'#6060cc',
     tableFill:'#080818',  tableStroke:'#404080', tableDetail:'rgba(100,100,200,0.3)' },
 ];
-function getZone() { return ZONES[Math.min(Math.floor((wave||0)/5), ZONES.length-1)]; }
+function getZone() { return ZONES[Math.min(Math.floor((wave||0)/5), ZONES.length-1)] || ZONES[0]; }
 const MAX_PLAYERS = 6;
 const WAVE_DELAY  = 30;   // seconds between waves
 
@@ -443,8 +447,8 @@ function handleClick(mx,my) {
     if (hitBtn(mx,my,W/2-200,H/2+78))  { movePortals(true); state='menu'; musicPause(); updateCursor(); }
   }
   if (state==='dead') {
-    if (hitBtn(mx,my,W/2,H/2+45))  { initGame(); state='playing'; musicPlay();  updateCursor(); }
-    if (hitBtn(mx,my,W/2,H/2+108)) { movePortals(true); state='menu'; musicPause(); updateCursor(); }
+    if (hitBtn(mx,my,W/2-200,H/2+50))  { initGame(); state='playing'; musicPlay();  updateCursor(); }
+    if (hitBtn(mx,my,W/2-200,H/2+116)) { movePortals(true); state='menu'; musicPause(); updateCursor(); }
   }
 }
 

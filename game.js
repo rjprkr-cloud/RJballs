@@ -1586,8 +1586,9 @@ function drawPauseScreen() {
   ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(hx,vy,9,0,Math.PI*2); ctx.fill();
   ctx.restore();
 
-  // ── Right column – leaderboard centred at (W/2+260, H/2)
-  drawLeaderboard(W/2+260, H/2, 'LEADERBOARD');
+  // Leaderboard – bottom-right corner, clear of all left-column text
+  // panelH (10 rows) = 460px  →  cy = H - WALL - 240 keeps bottom edge ≤ H-WALL
+  drawLeaderboard(W - 320, H - WALL - 240, 'LEADERBOARD');
 }
 
 function drawDeadScreen() {
@@ -1601,7 +1602,8 @@ function drawDeadScreen() {
   ctx.fillText(`Level ${player.level}  ·  ${kills} kills  ·  Wave ${wave}  ·  Score ${sc.toLocaleString()}`,W/2,H/2-26);
   drawButton('PLAY AGAIN',W/2-200, H/2+58,  '#44ff88');
   drawButton('MAIN MENU', W/2-200, H/2+124, '#aaaaaa');
-  drawLeaderboard(W/2+260, H/2+160, 'LEADERBOARD');
+  // Leaderboard – bottom-right corner
+  drawLeaderboard(W - 320, H - WALL - 240, 'LEADERBOARD');
 }
 
 // ── Render ────────────────────────────────────────────────────────

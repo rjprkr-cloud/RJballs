@@ -140,9 +140,9 @@ const BUFF_DEFS = [
 
 // ── Enemy templates ───────────────────────────────────────────────
 const ETYPES = [
-  {kind:'Runner',  maxHp:60,  spd:2.4, dmg:18, r:10, clr:'#ff4455', xp:10}, // solid baseline
-  {kind:'Brute',   maxHp:220, spd:0.9, dmg:45, r:18, clr:'#ff8800', xp:30}, // slow, devastating
-  {kind:'Speeder', maxHp:35,  spd:5.2, dmg:8,  r:8,  clr:'#ff44cc', xp:15}, // fast but light hits
+  {kind:'Runner',  maxHp:60,  spd:2.4, dmg:36, r:10, clr:'#ff4455', xp:10}, // solid baseline
+  {kind:'Brute',   maxHp:220, spd:0.9, dmg:90, r:18, clr:'#ff8800', xp:30}, // slow, devastating
+  {kind:'Speeder', maxHp:35,  spd:5.2, dmg:16, r:8,  clr:'#ff44cc', xp:15}, // fast but light hits
 ];
 function pickType(wave) {
   if (wave <= 2) return ETYPES[0];
@@ -207,7 +207,7 @@ function spawnWave() {
     const bHp   = Math.round(800 * Math.pow(1.35, tier) * hpMult);
     const pos   = randomEdgePos();
     boss = {
-      ...pos, r:32, spd:1.8, dmg:70,
+      ...pos, r:32, spd:1.8, dmg:140,
       hp:bHp, maxHp:bHp, clr:'#cc0033', xp:300+wave*30,
       atkCd:2.5, atkIdx:0, charging:false, chargeDur:0,
       chargeDir:{x:0,y:1}, enraged:false, angle:0,
@@ -233,12 +233,12 @@ function doBossAttack(b) {
     const n = b.enraged ? 14 : 9;
     for (let i=0; i<n; i++) {
       const a = (i/n)*Math.PI*2 + t*0.4;
-      enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a)*4.5,vy:Math.sin(a)*4.5,dmg:12,r:7,life:3,dead:false});
+      enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a)*4.5,vy:Math.sin(a)*4.5,dmg:24,r:7,life:3,dead:false});
     }
     if (b.enraged) {
       for (let i=0; i<9; i++) {
         const a=(i/9)*Math.PI*2+Math.PI/9+t*0.4;
-        enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a)*3.2,vy:Math.sin(a)*3.2,dmg:10,r:6,life:3.5,dead:false});
+        enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a)*3.2,vy:Math.sin(a)*3.2,dmg:20,r:6,life:3.5,dead:false});
       }
     }
     createExplosion(b.x, b.y, 40, '#ff0022');
@@ -251,7 +251,7 @@ function doBossAttack(b) {
       const shots = b.enraged ? 3 : 2;
       for (let i=0; i<shots; i++) {
         const da = (i-(shots-1)/2)*0.18;
-        enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a+da)*5.5,vy:Math.sin(a+da)*5.5,dmg:18,r:7,life:3.5,dead:false});
+        enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a+da)*5.5,vy:Math.sin(a+da)*5.5,dmg:36,r:7,life:3.5,dead:false});
       }
     }
 

@@ -874,6 +874,26 @@ function update(dt) {
 }
 
 // ── Draw helpers ──────────────────────────────────────────────────
+
+// Overlays rim-shadow + specular highlight onto any circle to fake sphere depth.
+// Call immediately after filling the base colour circle (ctx state is preserved).
+function drawSphereShading(x, y, r) {
+  // Rim darkening — transparent centre, dark edge
+  const rim = ctx.createRadialGradient(x, y, r * 0.35, x, y, r);
+  rim.addColorStop(0, 'rgba(0,0,0,0)');
+  rim.addColorStop(1, 'rgba(0,0,0,0.52)');
+  ctx.fillStyle = rim;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+  // Specular highlight — offset toward top-left
+  const hx = x - r * 0.28, hy = y - r * 0.28;
+  const spec = ctx.createRadialGradient(hx, hy, 0, hx, hy, r * 0.58);
+  spec.addColorStop(0,   'rgba(255,255,255,0.62)');
+  spec.addColorStop(0.45,'rgba(255,255,255,0.12)');
+  spec.addColorStop(1,   'rgba(255,255,255,0)');
+  ctx.fillStyle = spec;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+}
+
 function drawFloor() {
   const z=getZone();
   for (let tx=WALL;tx<W-WALL;tx+=TILE)
@@ -1018,6 +1038,7 @@ function drawEnemies() {
     }
     ctx.fillStyle=e.clr;
     ctx.beginPath();ctx.arc(e.x,e.y,e.r,0,Math.PI*2);ctx.fill();
+    drawSphereShading(e.x, e.y, e.r);
 
     // Ember: inner fire core
     if (e.kind==='Ember') {
@@ -1077,6 +1098,7 @@ function drawBoss(b) {
   ctx.globalAlpha=1;ctx.shadowColor=enr?'#ff6600':'#ff0033';ctx.shadowBlur=22;
   ctx.fillStyle=b.charging?'#ff8800':(enr?'#dd2200':'#aa0022');
   ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();
+  ctx.shadowBlur=0; drawSphereShading(b.x, b.y, b.r);
   const eyeR=b.r*0.35,ea=b.angle;
   for(const side of[-0.42,0.42]){
     const ex=b.x+Math.cos(ea+side)*eyeR,ey=b.y+Math.sin(ea+side)*eyeR;
@@ -1206,6 +1228,7 @@ function drawPlayerAvatar(x,y,angle,color,alpha=1,weaponName=null,weaponClr='#ff
   ctx.beginPath();ctx.arc(x,y,PR+6,0,Math.PI*2);ctx.fill();
   ctx.globalAlpha=alpha;ctx.shadowColor=color;ctx.shadowBlur=12;ctx.fillStyle=color;
   ctx.beginPath();ctx.arc(x,y,PR,0,Math.PI*2);ctx.fill();
+  ctx.shadowBlur=0; drawSphereShading(x, y, PR);
   const dotX=x+Math.sin(angle)*(PR-4),dotY=y-Math.cos(angle)*(PR-4);
   ctx.fillStyle='rgba(255,255,255,0.88)';ctx.shadowColor='#fff';ctx.shadowBlur=6;ctx.globalAlpha=alpha*0.85;
   ctx.beginPath();ctx.arc(dotX,dotY,3.5,0,Math.PI*2);ctx.fill();
@@ -1219,6 +1242,7 @@ function drawPeer(p) {
   ctx.beginPath();ctx.arc(p.renderX,p.renderY,PR+6,0,Math.PI*2);ctx.fill();
   ctx.globalAlpha=alpha;ctx.shadowColor=p.color||'#888';ctx.shadowBlur=12;ctx.fillStyle=p.color||'#888';
   ctx.beginPath();ctx.arc(p.renderX,p.renderY,PR,0,Math.PI*2);ctx.fill();
+  ctx.shadowBlur=0; drawSphereShading(p.renderX, p.renderY, PR);
   const dotX=p.renderX+Math.sin(p.angle||0)*(PR-4),dotY=p.renderY-Math.cos(p.angle||0)*(PR-4);
   ctx.fillStyle='rgba(255,255,255,0.85)';ctx.shadowColor='#fff';ctx.shadowBlur=5;ctx.globalAlpha=alpha*0.8;
   ctx.beginPath();ctx.arc(dotX,dotY,3.5,0,Math.PI*2);ctx.fill();

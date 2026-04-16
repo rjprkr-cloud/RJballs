@@ -988,6 +988,8 @@ function drawDeadScreen() {
 
 // ── Render ────────────────────────────────────────────────────────
 function render() {
+  // Keep cursor in sync with state every frame (most reliable approach)
+  updateCursor();
   // Reset critical state at the top of every frame
   ctx.globalAlpha=1; ctx.shadowBlur=0; ctx.setLineDash([]);
   ctx.fillStyle='#0a0514';ctx.fillRect(0,0,W,H);

@@ -542,9 +542,18 @@ async function setupMultiplayer() {
 
     const [sScore,gScore]=room.makeAction('score');
     sendScore=sScore;
-    gScore((d,peerId)=>{ peerScores.set(peerId,d); });
+    // Save every received score locally so the leaderboard accumulates across sessions
+    gScore((d,peerId)=>{
+      peerScores.set(peerId,d);
+      if (d.username && d.score != null) lbSubmit(d);
+    });
 
-    room.onPeerJoin(id=>{peers.set(id,null);broadcastSelf();refreshCount();});
+    room.onPeerJoin(id=>{
+      peers.set(id,null); broadcastSelf(); refreshCount();
+      // Gossip our full local leaderboard to the newcomer so scores spread between players
+      const all = lbLoad();
+      setTimeout(()=>{ for (const entry of all) sendScore?.({...entry}); }, 800);
+    });
     room.onPeerLeave(id=>{peers.delete(id);refreshCount();});
     get((d,id)=>{const p=peers.get(id);peers.set(id,{...d,renderX:p?.renderX??d.x,renderY:p?.renderY??d.y});});
     refreshCount(); broadcastSelf();

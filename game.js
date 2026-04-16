@@ -266,6 +266,22 @@ function initGame() {
 }
 
 // ── Spawning ──────────────────────────────────────────────────────
+
+// Returns a random floor position that doesn't overlap any wall or furniture.
+function randomBuffPos() {
+  const margin = WALL + 60, r = 26;
+  for (let i = 0; i < 60; i++) {
+    const x = margin + Math.random() * (W - margin * 2);
+    const y = margin + Math.random() * (H - margin * 2);
+    let blocked = false;
+    for (const rect of SOLID) {
+      if (circleRect(x, y, r, rect.x, rect.y, rect.w, rect.h)) { blocked=true; break; }
+    }
+    if (!blocked) return {x, y};
+  }
+  return {x: W/2, y: H/2}; // fallback
+}
+
 function randomEdgePos() {
   const side = Math.floor(Math.random()*4);
   if (side===0) return {x:WALL+10+Math.random()*(W-WALL*2-20), y:WALL+8};
@@ -961,13 +977,13 @@ function update(dt) {
   buffSpawnTimer-=dt;
   if (buffSpawnTimer<=0&&buffItems.length<3){
     buffSpawnTimer=22+Math.random()*14;
-    const margin=WALL+80;
     const def=BUFF_DEFS[Math.floor(Math.random()*BUFF_DEFS.length)];
-    buffItems.push({x:margin+Math.random()*(W-margin*2),y:margin+Math.random()*(H-margin*2),def,life:12,pulse:0});
+    const bp=randomBuffPos();
+    buffItems.push({x:bp.x,y:bp.y,def,life:12,pulse:0});
   }
   buffItems=buffItems.filter(item=>{
     item.life-=dt;item.pulse+=dt*3;
-    if(Math.hypot(player.x-item.x,player.y-item.y)<PR+16){
+    if(Math.hypot(player.x-item.x,player.y-item.y)<PR+26){
       if (item.def.instant) { triggerBomb(); }
       else { player.buffs[item.def.id]=item.def.dur; showNotif(`${item.def.name}!`,item.def.clr); }
       createExplosion(item.x,item.y,26,item.def.clr);
@@ -1245,8 +1261,8 @@ function drawBuffItems() {
   for(const item of buffItems){
     const pulse=Math.sin(item.pulse)*0.5+0.5, fade=Math.min(1,item.life/2);
     ctx.save();ctx.globalAlpha=fade;ctx.shadowColor=item.def.clr;ctx.shadowBlur=14+pulse*10;ctx.fillStyle=item.def.clr;
-    ctx.beginPath();ctx.arc(item.x,item.y,14+pulse*3,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='rgba(0,0,0,0.85)';ctx.shadowBlur=0;ctx.beginPath();ctx.arc(item.x,item.y,11,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(item.x,item.y,22+pulse*5,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(0,0,0,0.85)';ctx.shadowBlur=0;ctx.beginPath();ctx.arc(item.x,item.y,17,0,Math.PI*2);ctx.fill();
     ctx.fillStyle=item.def.clr;ctx.font='bold 16px ui-sans-serif,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.fillText(item.def.name.slice(0,3),item.x,item.y);
     ctx.textBaseline='alphabetic';ctx.font='18px ui-sans-serif,sans-serif';ctx.shadowColor=item.def.clr;ctx.shadowBlur=6;

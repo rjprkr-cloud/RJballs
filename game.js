@@ -351,7 +351,7 @@ function shoot() {
   const base = Math.atan2(mouseY-player.y, mouseX-player.x);
   if (w.beam) { fireBeam(base, w.dmg, w.clr); shotCd=cd; return; }
   const n    = player.buffs.spread >0 ? w.n+2     : w.n;
-  const aoe  = player.buffs.splash >0 ? Math.max(w.aoe,22) : w.aoe;
+  const aoe  = player.buffs.splash >0 ? Math.max(w.aoe,80) : w.aoe;
   const spr  = player.buffs.spread >0 ? w.spr+0.26 : w.spr;
   for (let i=0; i<n; i++) {
     const a = base + (Math.random()-0.5)*spr*2;

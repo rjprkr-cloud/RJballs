@@ -1,4 +1,4 @@
-// Top-down arena shooter — 1920×1080, walk-on menu pads, 30s wave timer
+// Spherocide — top-down shooter — 1920×1080, walk-on menu pads, 30s wave timer
 // Portal Protocol + Trystero co-op multiplayer
 
 const canvas = document.getElementById('game');
@@ -1360,9 +1360,9 @@ function drawMenuOverlay() {
   ctx.fillStyle='rgba(8,3,18,0.65)';ctx.fillRect(WALL,WALL,W-WALL*2,H*0.48);
   ctx.shadowColor='#c64bff';ctx.shadowBlur=36;ctx.fillStyle='#f4f4ff';
   ctx.font='bold 96px ui-sans-serif,sans-serif';ctx.textAlign='center';
-  ctx.fillText('ARENA',W/2,H*0.18);
+  ctx.fillText('SPHEROCIDE',W/2,H*0.18);
   ctx.fillStyle='#c64bff';ctx.font='20px ui-sans-serif,sans-serif';ctx.shadowBlur=0;
-  ctx.fillText('Co-op arena shooter  ·  survive the waves  ·  level up',W/2,H*0.25);
+  ctx.fillText('Co-op shooter  ·  survive the waves  ·  level up',W/2,H*0.25);
   ctx.fillStyle='rgba(255,255,255,0.45)';ctx.font='14px ui-sans-serif,sans-serif';
   ctx.fillText('WASD to move  ·  Mouse to aim  ·  Click to shoot  ·  Up to 6 co-op',W/2,H*0.29);
   // Weapon tier row

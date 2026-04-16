@@ -5,7 +5,10 @@ const canvas = document.getElementById('game');
 const ctx    = canvas.getContext('2d');
 const W = canvas.width;    // 1920
 const H = canvas.height;   // 1080
-canvas.style.cursor = 'none';
+canvas.style.cursor = 'default';
+function updateCursor() {
+  canvas.style.cursor = (state === 'playing') ? 'none' : 'default';
+}
 
 // ── Portal protocol ───────────────────────────────────────────────
 const incoming   = Portal.readPortalParams();
@@ -287,6 +290,7 @@ addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if (state === 'playing') state = 'paused';
     else if (state === 'paused') state = 'playing';
+    updateCursor();
   }
 });
 addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
@@ -307,12 +311,12 @@ function hitBtn(mx,my,bx,by) {
 // Click only used for dead screen now
 function handleClick(mx,my) {
   if (state==='paused') {
-    if (hitBtn(mx,my,W/2,H/2+10))  { state='playing'; }
-    if (hitBtn(mx,my,W/2,H/2+78))  { movePortals(true); state='menu'; }
+    if (hitBtn(mx,my,W/2,H/2+10))  { state='playing'; updateCursor(); }
+    if (hitBtn(mx,my,W/2,H/2+78))  { movePortals(true); state='menu'; updateCursor(); }
   }
   if (state==='dead') {
-    if (hitBtn(mx,my,W/2,H/2+45))  { initGame(); state='playing'; }
-    if (hitBtn(mx,my,W/2,H/2+108)) { movePortals(true); state='menu'; }
+    if (hitBtn(mx,my,W/2,H/2+45))  { initGame(); state='playing'; updateCursor(); }
+    if (hitBtn(mx,my,W/2,H/2+108)) { movePortals(true); state='menu'; updateCursor(); }
   }
 }
 
@@ -412,7 +416,7 @@ function update(dt) {
         pad.timer = Math.min(PAD_HOLD, pad.timer+dt);
         if (pad.timer >= PAD_HOLD) {
           pad.timer=0;
-          if (pad.id==='start') { initGame(); state='playing'; return; }
+          if (pad.id==='start') { initGame(); state='playing'; updateCursor(); return; }
           if (pad.id==='end')   {
             window.location.href = nextTarget?.url ?? 'https://callumhyoung.github.io/gamejam/';
           }

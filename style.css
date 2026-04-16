@@ -67,3 +67,71 @@ body {
   font-size: 0.75rem;
   margin-top: 0.35rem;
 }
+
+/* ── Name-entry screen ─────────────────────────────────────── */
+#name-screen {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at top, rgba(198,75,255,0.22), transparent 55%),
+    radial-gradient(ellipse at bottom, rgba(255,79,216,0.14), transparent 55%),
+    #06030f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+#name-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+}
+
+#name-title {
+  font: bold 88px ui-sans-serif, system-ui, sans-serif;
+  color: #f4f4ff;
+  text-shadow: 0 0 50px #c64bff, 0 0 20px #c64bff;
+  letter-spacing: 4px;
+}
+
+#name-sub {
+  color: rgba(255,255,255,0.55);
+  font: 22px ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 1px;
+}
+
+#name-input {
+  background: rgba(255,255,255,0.07);
+  border: 2px solid var(--accent);
+  border-radius: 6px;
+  color: #fff;
+  font: bold 30px ui-sans-serif, system-ui, sans-serif;
+  padding: 14px 28px;
+  text-align: center;
+  outline: none;
+  width: 380px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+#name-input:focus {
+  border-color: #ff4fd8;
+  box-shadow: 0 0 20px rgba(198,75,255,0.5);
+}
+#name-input::placeholder { color: rgba(255,255,255,0.25); }
+
+#name-btn {
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  font: bold 22px ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 3px;
+  padding: 16px 48px;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+#name-btn:hover {
+  background: #a030dd;
+  box-shadow: 0 0 24px rgba(198,75,255,0.7);
+}

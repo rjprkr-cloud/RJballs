@@ -29,9 +29,33 @@ function musicPlay() {
 }
 function musicPause() { if (!music.paused) music.pause(); }
 
+// ── Name entry ────────────────────────────────────────────────────
+// Show the name screen, resolve with the chosen name, then hide it.
+const _chosenName = await (function askName() {
+  const screen = document.getElementById('name-screen');
+  const input  = document.getElementById('name-input');
+  const btn    = document.getElementById('name-btn');
+  // Pre-fill with last used name if available
+  const saved = localStorage.getItem('spherocide-username') || '';
+  if (saved) input.value = saved;
+  input.focus();
+  input.select();
+  return new Promise(resolve => {
+    function submit() {
+      const name = input.value.trim().slice(0, 20) || 'Player';
+      localStorage.setItem('spherocide-username', name);
+      screen.style.display = 'none';
+      resolve(name);
+    }
+    btn.addEventListener('click', submit);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+  });
+}());
+
 // ── Portal protocol ───────────────────────────────────────────────
 const incoming   = Portal.readPortalParams();
-document.getElementById('username').textContent = incoming.username;
+incoming.username = _chosenName;  // override portal guest ID with chosen name
+document.getElementById('username').textContent = _chosenName;
 // 3-second timeout so a slow/hanging registry fetch never blocks the game loop
 const nextTarget = await Promise.race([
   Portal.pickPortalTarget(),

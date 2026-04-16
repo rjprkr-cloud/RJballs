@@ -36,6 +36,41 @@ const nextTarget = await Portal.pickPortalTarget();
 
 // ── Constants ─────────────────────────────────────────────────────
 const WALL = 36, TILE = 48, PR = 13;
+
+// ── Zone themes (change every 5 waves) ───────────────────────────
+const ZONES = [
+  { name:'Deep Space', // waves 0-4
+    floor1:'#120826', floor2:'#160a2e', grid:'rgba(80,20,140,0.2)',
+    wall:'#1a0840',   wallBorder:'#4a1080', corner:'#5a1898',
+    pillarFill:'#2a0a50', pillarStroke:'#7020c0',
+    tableFill:'#1e0840',  tableStroke:'#4a1a80', tableDetail:'rgba(90,40,140,0.3)' },
+  { name:'Toxic Zone', // waves 5-9
+    floor1:'#071a0a', floor2:'#091f0c', grid:'rgba(30,120,40,0.2)',
+    wall:'#061408',   wallBorder:'#1a6020', corner:'#22802a',
+    pillarFill:'#0d2a10', pillarStroke:'#2a8030',
+    tableFill:'#091a0b',  tableStroke:'#1a5a22', tableDetail:'rgba(40,120,50,0.3)' },
+  { name:'Volcanic',   // waves 10-14
+    floor1:'#1a0800', floor2:'#200a00', grid:'rgba(180,50,10,0.2)',
+    wall:'#1a0500',   wallBorder:'#7a2000', corner:'#aa3000',
+    pillarFill:'#2a0a00', pillarStroke:'#aa3500',
+    tableFill:'#1a0600',  tableStroke:'#6a1a00', tableDetail:'rgba(150,50,10,0.3)' },
+  { name:'Arctic',     // waves 15-19
+    floor1:'#040e16', floor2:'#06121c', grid:'rgba(40,160,200,0.2)',
+    wall:'#040c18',   wallBorder:'#1a6080', corner:'#2080aa',
+    pillarFill:'#061422', pillarStroke:'#1a80aa',
+    tableFill:'#05101e',  tableStroke:'#156880', tableDetail:'rgba(30,140,180,0.3)' },
+  { name:'Ancient',    // waves 20-24
+    floor1:'#16100a', floor2:'#1c1408', grid:'rgba(180,140,20,0.2)',
+    wall:'#14100a',   wallBorder:'#7a6010', corner:'#aa8820',
+    pillarFill:'#241a08', pillarStroke:'#aa8a10',
+    tableFill:'#1c140a',  tableStroke:'#7a6018', tableDetail:'rgba(160,120,20,0.3)' },
+  { name:'The Void',   // waves 25+
+    floor1:'#060614', floor2:'#08081a', grid:'rgba(200,200,255,0.08)',
+    wall:'#04040e',   wallBorder:'#303060', corner:'#5050aa',
+    pillarFill:'#0c0c22', pillarStroke:'#6060cc',
+    tableFill:'#080818',  tableStroke:'#404080', tableDetail:'rgba(100,100,200,0.3)' },
+];
+function getZone() { return ZONES[Math.min(Math.floor(wave/5), ZONES.length-1)]; }
 const MAX_PLAYERS = 6;
 const WAVE_DELAY  = 30;   // seconds between waves
 
@@ -200,7 +235,13 @@ function spawnEnemy(type) {
 }
 
 function spawnWave() {
+  const prevZoneIdx = Math.min(Math.floor((wave)/5), ZONES.length-1);
   wave++;
+  const newZoneIdx  = Math.min(Math.floor((wave)/5), ZONES.length-1);
+  if (newZoneIdx !== prevZoneIdx) {
+    const z = ZONES[newZoneIdx];
+    showNotif(`⬡ ENTERING: ${z.name.toUpperCase()} ⬡`, z.pillarStroke);
+  }
   const peerCount  = Math.min(peers.size, MAX_PLAYERS-1);
   const hpMult     = 1 + peerCount * 0.35;
   const extraCount = peerCount * 2;
@@ -762,40 +803,42 @@ function update(dt) {
 
 // ── Draw helpers ──────────────────────────────────────────────────
 function drawFloor() {
+  const z=getZone();
   for (let tx=WALL;tx<W-WALL;tx+=TILE)
     for (let ty=WALL;ty<H-WALL;ty+=TILE){
-      ctx.fillStyle=(Math.floor((tx-WALL)/TILE)+Math.floor((ty-WALL)/TILE))%2===0?'#120826':'#160a2e';
+      ctx.fillStyle=(Math.floor((tx-WALL)/TILE)+Math.floor((ty-WALL)/TILE))%2===0?z.floor1:z.floor2;
       ctx.fillRect(tx,ty,Math.min(TILE,W-WALL-tx),Math.min(TILE,H-WALL-ty));
     }
-  ctx.strokeStyle='rgba(80,20,140,0.2)';ctx.lineWidth=0.5;
+  ctx.strokeStyle=z.grid;ctx.lineWidth=0.5;
   for (let tx=WALL;tx<=W-WALL;tx+=TILE){ctx.beginPath();ctx.moveTo(tx,WALL);ctx.lineTo(tx,H-WALL);ctx.stroke();}
   for (let ty=WALL;ty<=H-WALL;ty+=TILE){ctx.beginPath();ctx.moveTo(WALL,ty);ctx.lineTo(W-WALL,ty);ctx.stroke();}
 }
 function drawWalls() {
+  const z=getZone();
   ctx.shadowBlur=0;
-  ctx.fillStyle='#1a0840';
+  ctx.fillStyle=z.wall;
   ctx.fillRect(0,0,W,WALL);ctx.fillRect(0,H-WALL,W,WALL);
   ctx.fillRect(0,0,WALL,H);ctx.fillRect(W-WALL,0,WALL,H);
-  ctx.strokeStyle='#4a1080';ctx.lineWidth=2;ctx.strokeRect(WALL,WALL,W-WALL*2,H-WALL*2);
-  ctx.strokeStyle='#5a1898';ctx.lineWidth=2;
+  ctx.strokeStyle=z.wallBorder;ctx.lineWidth=2;ctx.strokeRect(WALL,WALL,W-WALL*2,H-WALL*2);
+  ctx.strokeStyle=z.corner;ctx.lineWidth=2;
   for (const[cx,cy,sx,sy] of [[WALL,WALL,1,1],[W-WALL,WALL,-1,1],[WALL,H-WALL,1,-1],[W-WALL,H-WALL,-1,-1]]){
     const B=18;ctx.beginPath();ctx.moveTo(cx+sx*B,cy);ctx.lineTo(cx,cy);ctx.lineTo(cx,cy+sy*B);ctx.stroke();
   }
 }
 function drawFurniture() {
-  // No shadowBlur on static geometry — just flat fills + strokes
+  const z=getZone();
   for (const f of FURNITURE) {
     if (f.type==='pillar'){
-      ctx.fillStyle='#2a0a50'; ctx.fillRect(f.x,f.y,f.w,f.h);
-      ctx.strokeStyle='#7020c0'; ctx.lineWidth=1.5; ctx.strokeRect(f.x,f.y,f.w,f.h);
+      ctx.fillStyle=z.pillarFill; ctx.fillRect(f.x,f.y,f.w,f.h);
+      ctx.strokeStyle=z.pillarStroke; ctx.lineWidth=1.5; ctx.strokeRect(f.x,f.y,f.w,f.h);
     } else if (f.type==='table'){
-      ctx.fillStyle='#1e0840'; ctx.fillRect(f.x,f.y,f.w,f.h);
-      ctx.strokeStyle='#4a1a80'; ctx.lineWidth=1.5; ctx.strokeRect(f.x,f.y,f.w,f.h);
-      ctx.strokeStyle='rgba(90,40,140,0.3)'; ctx.lineWidth=1;
+      ctx.fillStyle=z.tableFill; ctx.fillRect(f.x,f.y,f.w,f.h);
+      ctx.strokeStyle=z.tableStroke; ctx.lineWidth=1.5; ctx.strokeRect(f.x,f.y,f.w,f.h);
+      ctx.strokeStyle=z.tableDetail; ctx.lineWidth=1;
       for(let lx=f.x+12;lx<f.x+f.w-4;lx+=14){ctx.beginPath();ctx.moveTo(lx,f.y+6);ctx.lineTo(lx,f.y+f.h-6);ctx.stroke();}
     } else {
-      ctx.fillStyle='#180636'; ctx.fillRect(f.x,f.y,f.w,f.h);
-      ctx.strokeStyle='#3a1070'; ctx.lineWidth=1.5; ctx.strokeRect(f.x,f.y,f.w,f.h);
+      ctx.fillStyle=z.pillarFill; ctx.fillRect(f.x,f.y,f.w,f.h);
+      ctx.strokeStyle=z.pillarStroke; ctx.lineWidth=1.5; ctx.strokeRect(f.x,f.y,f.w,f.h);
     }
   }
 }

@@ -132,10 +132,11 @@ const xpToNext  = lv => 40 + lv * 30;
 
 // ── Buff items ────────────────────────────────────────────────────
 const BUFF_DEFS = [
-  {id:'bouncing', name:'BOUNCE', dur:20, clr:'#44ffcc'},
-  {id:'splash',   name:'SPLASH', dur:20, clr:'#ff8844'},
-  {id:'spread',   name:'SPREAD', dur:20, clr:'#4488ff'},
-  {id:'rapid',    name:'RAPID',  dur:15, clr:'#ffff44'},
+  {id:'bouncing', name:'BOUNCE',   dur:20, clr:'#44ffcc'},
+  {id:'splash',   name:'SPLASH',   dur:20, clr:'#ff8844'},
+  {id:'spread',   name:'SPREAD',   dur:20, clr:'#4488ff'},
+  {id:'rapid',    name:'RAPID',    dur:15, clr:'#ffff44'},
+  {id:'ricochet', name:'RICOCHET', dur:20, clr:'#ff44aa'},
 ];
 
 // ── Enemy templates ───────────────────────────────────────────────
@@ -163,7 +164,7 @@ let player = {
   x: W / 2, y: H / 2 - 80, r: PR, speed: 10,
   color: '#' + incoming.color, angle: 0,
   hp: 200, maxHp: 200, level: 1, xp: 0, iframes: 0,
-  buffs: {bouncing:0, splash:0, spread:0, rapid:0},
+  buffs: {bouncing:0, splash:0, spread:0, rapid:0, ricochet:0},
 };
 
 function showNotif(msg, clr='#ffdd44') { notif=msg; notifT=2.8; notifClr=clr; }
@@ -280,6 +281,7 @@ function shoot() {
       dmg:w.dmg, r:w.br, clr:w.clr,
       pierce:w.pierce, aoe, life:2.2, dead:false,
       bouncing: player.buffs.bouncing>0, bounces:0,
+      ricochet: player.buffs.ricochet>0, ricochetsLeft:4, ricocheted:new Set(),
     });
   }
   shotCd = cd;
@@ -577,12 +579,28 @@ function update(dt) {
   for (const e of enemies) {
     for (const b of bullets) {
       if (b.dead) continue;
+      if (b.ricocheted?.has(e)) continue; // already hit this enemy this chain
       if (Math.hypot(b.x-e.x,b.y-e.y)<e.r+b.r) {
         e.hp-=b.dmg;
         if (b.aoe>0){
           for (const o of enemies) if(Math.hypot(b.x-o.x,b.y-o.y)<b.aoe) o.hp-=b.dmg*0.5;
           if (boss&&Math.hypot(b.x-boss.x,b.y-boss.y)<b.aoe) boss.hp-=b.dmg*0.5;
           createExplosion(b.x,b.y,b.aoe,b.clr); b.dead=true;
+        } else if (b.ricochet&&b.ricochetsLeft>0) {
+          b.ricocheted.add(e);
+          // Find nearest enemy not yet in this chain
+          let nearest=null, nearestD=380;
+          for (const o of enemies) {
+            if (b.ricocheted.has(o)) continue;
+            const d=Math.hypot(b.x-o.x,b.y-o.y);
+            if (d<nearestD){nearest=o;nearestD=d;}
+          }
+          if (nearest) {
+            const spd=Math.hypot(b.vx,b.vy);
+            const a=Math.atan2(nearest.y-b.y,nearest.x-b.x);
+            b.vx=Math.cos(a)*spd; b.vy=Math.sin(a)*spd;
+            b.ricochetsLeft--;
+          } else { b.dead=true; }
         } else if (!b.pierce) { b.dead=true; }
       }
     }
@@ -597,6 +615,21 @@ function update(dt) {
         if (b.aoe>0){
           for (const o of enemies) if(Math.hypot(b.x-o.x,b.y-o.y)<b.aoe) o.hp-=b.dmg*0.5;
           createExplosion(b.x,b.y,b.aoe,b.clr); b.dead=true;
+        } else if (b.ricochet&&b.ricochetsLeft>0) {
+          b.ricocheted?.add(boss);
+          // Ricochet to nearest enemy after hitting boss
+          let nearest=null, nearestD=380;
+          for (const o of enemies) {
+            if (b.ricocheted?.has(o)) continue;
+            const d=Math.hypot(b.x-o.x,b.y-o.y);
+            if (d<nearestD){nearest=o;nearestD=d;}
+          }
+          if (nearest) {
+            const spd=Math.hypot(b.vx,b.vy);
+            const a=Math.atan2(nearest.y-b.y,nearest.x-b.x);
+            b.vx=Math.cos(a)*spd; b.vy=Math.sin(a)*spd;
+            b.ricochetsLeft--;
+          } else { b.dead=true; }
         } else if (!b.pierce){b.dead=true;}
       }
     }

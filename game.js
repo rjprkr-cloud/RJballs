@@ -124,8 +124,8 @@ const WEAPONS = [
   {name:'Pistol',  lv:1,  dmg:15, spd:9,  cd:0.42,n:1,spr:0,    pierce:false,aoe:0,  clr:'#ffdd44',br:4},
   {name:'Shotgun', lv:3,  dmg:12, spd:9,  cd:0.70,n:5,spr:0.32, pierce:false,aoe:0,  clr:'#ff8833',br:4},
   {name:'SMG',     lv:5,  dmg:9,  spd:13, cd:0.09,n:1,spr:0.10, pierce:false,aoe:0,  clr:'#44aaff',br:3},
-  {name:'Plasma',  lv:7,  dmg:40, spd:14, cd:0.45,n:1,spr:0,    pierce:true, aoe:0,  clr:'#dd44ff',br:5},
-  {name:'Rocket',  lv:10, dmg:90, spd:6,  cd:1.10,n:1,spr:0,    pierce:false,aoe:55, clr:'#ff4444',br:6},
+  {name:'Plasma',  lv:7,  dmg:40, spd:14, cd:0.45,n:1,spr:0,    pierce:true, aoe:0,  clr:'#dd44ff',br:5, beam:true},
+  {name:'Rocket',  lv:10, dmg:90, spd:6,  cd:1.10,n:1,spr:0,    pierce:false,aoe:130,clr:'#ff4444',br:6},
 ];
 const getWeapon = lv => [...WEAPONS].reverse().find(w => lv >= w.lv) ?? WEAPONS[0];
 const xpToNext  = lv => 40 + lv * 30;
@@ -152,7 +152,7 @@ function pickType(wave) {
 
 // ── Game state ────────────────────────────────────────────────────
 let state = 'menu'; // 'menu' | 'playing' | 'paused' | 'dead'
-let bullets, enemyBullets, enemies, boss;
+let bullets, enemyBullets, enemies, boss, beams;
 let explosions, buffItems;
 let wave, waveTimer, shotCd, kills, buffSpawnTimer;
 let notif = '', notifT = 0, notifClr = '#ffdd44';
@@ -174,7 +174,7 @@ function initGame() {
   player.level = 1; player.xp = 0; player.iframes = 0;
   player.buffs = {bouncing:0,splash:0,spread:0,rapid:0};
   bullets=[]; enemyBullets=[]; enemies=[];
-  boss=null; explosions=[]; buffItems=[];
+  boss=null; explosions=[]; buffItems=[]; beams=[];
   wave=0; waveTimer=WAVE_DELAY; shotCd=0; kills=0; buffSpawnTimer=25;
   // Reset pad timers
   for (const p of WALK_PADS) p.timer = 0;
@@ -267,10 +267,11 @@ function doBossAttack(b) {
 function shoot() {
   const w    = getWeapon(player.level);
   const cd   = player.buffs.rapid  >0 ? w.cd*0.55 : w.cd;
+  const base = Math.atan2(mouseY-player.y, mouseX-player.x);
+  if (w.beam) { fireBeam(base, w.dmg, w.clr); shotCd=cd; return; }
   const n    = player.buffs.spread >0 ? w.n+2     : w.n;
   const aoe  = player.buffs.splash >0 ? Math.max(w.aoe,22) : w.aoe;
   const spr  = player.buffs.spread >0 ? w.spr+0.26 : w.spr;
-  const base = Math.atan2(mouseY-player.y, mouseX-player.x);
   for (let i=0; i<n; i++) {
     const a = base + (Math.random()-0.5)*spr*2;
     bullets.push({
@@ -282,6 +283,35 @@ function shoot() {
     });
   }
   shotCd = cd;
+}
+
+// ── Plasma beam raycast ───────────────────────────────────────────
+function fireBeam(angle, dmg, clr) {
+  const dx = Math.cos(angle), dy = Math.sin(angle);
+  const hit = new Set();
+  let endX = player.x, endY = player.y;
+  for (let dist = 8; dist < 2200; dist += 8) {
+    const cx = player.x + dx*dist, cy = player.y + dy*dist;
+    // Stop at outer walls
+    if (cx < WALL || cx > W-WALL || cy < WALL || cy > H-WALL) { endX=cx; endY=cy; break; }
+    endX=cx; endY=cy;
+    // Stop at furniture (solid cover)
+    let blocked=false;
+    for (const f of FURNITURE) {
+      if (cx>=f.x && cx<=f.x+f.w && cy>=f.y && cy<=f.y+f.h) { blocked=true; break; }
+    }
+    if (blocked) break;
+    // Damage enemies along path (pierce — hit each once)
+    for (const e of enemies) {
+      if (!hit.has(e) && Math.hypot(cx-e.x, cy-e.y) < e.r+6) {
+        e.hp -= dmg; hit.add(e); createExplosion(e.x, e.y, 18, clr);
+      }
+    }
+    if (boss && !hit.has(boss) && Math.hypot(cx-boss.x, cy-boss.y) < boss.r+6) {
+      boss.hp -= dmg; hit.add(boss); createExplosion(boss.x, boss.y, 28, clr);
+    }
+  }
+  beams.push({ x1:player.x, y1:player.y, x2:endX, y2:endY, clr, life:0.18, maxLife:0.18 });
 }
 
 // ── XP / Level ────────────────────────────────────────────────────
@@ -520,13 +550,28 @@ function update(dt) {
     if (b.life<=0){b.dead=true;continue;}
     const hL=b.x-b.r<WALL+1, hR=b.x+b.r>W-WALL-1, hT=b.y-b.r<WALL+1, hB=b.y+b.r>H-WALL-1;
     if (hL||hR||hT||hB) {
-      if (b.bouncing&&b.bounces<3) {
+      if (b.bouncing&&b.bounces<6) {
         if(hL||hR){b.vx*=-1;b.x=hL?WALL+b.r+2:W-WALL-b.r-2;}
         if(hT||hB){b.vy*=-1;b.y=hT?WALL+b.r+2:H-WALL-b.r-2;}
         b.bounces++;
       } else { b.dead=true; }
     }
-    if (!b.dead) for (const f of FURNITURE) if(circleRect(b.x,b.y,b.r,f.x,f.y,f.w,f.h)){b.dead=true;break;}
+    if (!b.dead) {
+      for (const f of FURNITURE) {
+        if (circleRect(b.x,b.y,b.r,f.x,f.y,f.w,f.h)) {
+          if (b.bouncing&&b.bounces<6) {
+            // Determine which axis caused the penetration and reflect it
+            const hitByX = circleRect(b.x, b.y-b.vy, b.r, f.x,f.y,f.w,f.h);
+            const hitByY = circleRect(b.x-b.vx, b.y, b.r, f.x,f.y,f.w,f.h);
+            if (hitByX) b.vx*=-1;
+            if (hitByY) b.vy*=-1;
+            if (!hitByX&&!hitByY){b.vx*=-1;b.vy*=-1;} // corner — reflect both
+            b.bounces++;
+          } else { b.dead=true; }
+          break;
+        }
+      }
+    }
   }
 
   // ── Player bullets vs enemies
@@ -637,8 +682,9 @@ function update(dt) {
     return item.life>0;
   });
 
-  // ── Explosions
+  // ── Explosions & beams
   explosions=explosions.filter(ex=>{ex.life-=dt;ex.r=ex.maxR*(1-ex.life/ex.maxLife);return ex.life>0;});
+  beams=beams.filter(b=>{b.life-=dt;return b.life>0;});
 
   // ── Wave timer (no boss)
   if (!boss){
@@ -845,6 +891,24 @@ function drawBuffItems() {
     ctx.textBaseline='alphabetic';ctx.font='10px ui-sans-serif,sans-serif';ctx.shadowColor=item.def.clr;ctx.shadowBlur=6;
     ctx.fillText(item.def.name,item.x,item.y+24);ctx.restore();
   }
+}
+function drawBeams() {
+  if (!beams?.length) return;
+  ctx.save();
+  for (const b of beams) {
+    const alpha = b.life / b.maxLife;
+    // Wide outer glow
+    ctx.globalAlpha=alpha*0.22; ctx.strokeStyle=b.clr; ctx.lineWidth=22;
+    ctx.shadowColor=b.clr; ctx.shadowBlur=18;
+    ctx.beginPath(); ctx.moveTo(b.x1,b.y1); ctx.lineTo(b.x2,b.y2); ctx.stroke();
+    // Mid colour core
+    ctx.globalAlpha=alpha*0.85; ctx.lineWidth=5; ctx.shadowBlur=8;
+    ctx.beginPath(); ctx.moveTo(b.x1,b.y1); ctx.lineTo(b.x2,b.y2); ctx.stroke();
+    // White-hot centre line
+    ctx.globalAlpha=alpha*0.9; ctx.strokeStyle='#ffffff'; ctx.lineWidth=1.5; ctx.shadowBlur=0;
+    ctx.beginPath(); ctx.moveTo(b.x1,b.y1); ctx.lineTo(b.x2,b.y2); ctx.stroke();
+  }
+  ctx.restore();
 }
 function drawExplosions() {
   ctx.save();
@@ -1166,6 +1230,7 @@ function render() {
     drawBuffItems();
     drawExplosions();
     drawPlayerBullets();
+    drawBeams();
     drawEnemyBullets();
     drawEnemies();
     drawBoss(boss);

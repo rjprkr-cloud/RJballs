@@ -321,7 +321,6 @@ function gainXP(amount) {
     player.xp -= xpToNext(player.level);
     player.level++;
     player.maxHp += 10;
-    player.hp = Math.min(player.hp+25, player.maxHp);
     const w = getWeapon(player.level);
     showNotif(w.lv===player.level ? `Lv ${player.level}! Unlocked: ${w.name}` : `Level ${player.level}!`, '#ffdd44');
   }
@@ -629,7 +628,8 @@ function update(dt) {
         buffItems.push({x:boss.x+Math.cos(a)*60,y:boss.y+Math.sin(a)*60,def:BUFF_DEFS[i],life:25,pulse:0});
       }
       createExplosion(boss.x,boss.y,90,'#ff0033');
-      showNotif('BOSS DEFEATED! BUFFS DROPPED!','#ffdd44');
+      player.hp = Math.min(player.hp + 80, player.maxHp); // heal on boss kill
+      showNotif('BOSS DEFEATED! +80 HP!','#44ff88');
       waveTimer=WAVE_DELAY;boss=null;
     }
   }

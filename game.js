@@ -454,12 +454,13 @@ const peers=new Map(), peerCountEl=document.getElementById('peers');
 let sendState=null, room=null;
 const setPeerStatus=(txt,err=false)=>{if(peerCountEl){peerCountEl.textContent=txt;peerCountEl.style.color=err?'#ff6b6b':'';}};
 const refreshCount=()=>setPeerStatus(`${peers.size+1} online`);
-const broadcastSelf=()=>sendState?.({
+const broadcastSelf=()=>{ const pw=getWeapon(player.level); sendState?.({
   x:player.x, y:player.y, angle:player.angle, color:player.color,
   username:incoming.username,
   hp:player.hp, maxHp:player.maxHp, level:player.level,
   alive: state==='playing' && player.hp>0,
-});
+  weapon:pw.name, weaponClr:pw.clr,
+});}
 
 async function loadTrystero() {
   for (const url of ['https://esm.run/trystero@0.23','https://cdn.jsdelivr.net/npm/trystero@0.23/+esm','https://esm.sh/trystero@0.23']) {
@@ -972,7 +973,73 @@ function drawExplosions() {
   }
   ctx.restore();
 }
-function drawPlayerAvatar(x,y,angle,color,alpha=1) {
+// Draws weapon shape extending in aim direction (barrel behind player circle)
+// angle is compass-style: sin(a)=dx, -cos(a)=dy
+function drawWeapon(x, y, angle, weaponName, weaponClr, alpha=1) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle - Math.PI / 2); // +x now = forward aim direction
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+  ctx.lineWidth = 1;
+  const s = PR + 2; // barrel starts just outside player radius
+
+  switch (weaponName) {
+    case 'Pistol':
+      ctx.fillStyle = weaponClr;
+      ctx.fillRect(s, -2, 14, 4); ctx.strokeRect(s, -2, 14, 4);
+      break;
+
+    case 'Dual Pistols':
+      ctx.fillStyle = weaponClr;
+      ctx.fillRect(s, -6, 13, 3); ctx.strokeRect(s, -6, 13, 3);
+      ctx.fillRect(s,  3, 13, 3); ctx.strokeRect(s,  3, 13, 3);
+      break;
+
+    case 'Shotgun':
+      ctx.fillStyle = '#884422'; // grip
+      ctx.fillRect(s-5, -3, 6, 7); ctx.strokeRect(s-5, -3, 6, 7);
+      ctx.fillStyle = weaponClr;  // wide barrel
+      ctx.fillRect(s, -4, 13, 8); ctx.strokeRect(s, -4, 13, 8);
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)'; // barrel split
+      ctx.beginPath(); ctx.moveTo(s, 0); ctx.lineTo(s+13, 0); ctx.stroke();
+      break;
+
+    case 'SMG':
+      ctx.fillStyle = weaponClr;   // barrel
+      ctx.fillRect(s, -2, 20, 4); ctx.strokeRect(s, -2, 20, 4);
+      ctx.fillStyle = '#1155aa';   // magazine
+      ctx.fillRect(s+3, 2, 7, 7); ctx.strokeRect(s+3, 2, 7, 7);
+      break;
+
+    case 'Rocket':
+      ctx.fillStyle = weaponClr;    // main tube
+      ctx.fillRect(s, -5, 22, 10); ctx.strokeRect(s, -5, 22, 10);
+      ctx.fillStyle = 'rgba(255,100,0,0.55)'; // exhaust vent accent
+      ctx.fillRect(s, -5, 5, 10);
+      ctx.fillStyle = '#220000';    // dark muzzle hole
+      ctx.beginPath(); ctx.arc(s+22, 0, 5, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = weaponClr; ctx.stroke();
+      break;
+
+    case 'Plasma':
+      ctx.fillStyle = '#440055';   // dark base
+      ctx.fillRect(s, -3, 30, 6); ctx.strokeRect(s, -3, 30, 6);
+      ctx.fillStyle = weaponClr;   // bright overlay
+      ctx.fillRect(s, -2, 30, 4);
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+      ctx.strokeRect(s, -2, 30, 4);
+      ctx.fillStyle = '#ffffff';   // white-hot tip
+      ctx.beginPath(); ctx.arc(s+31, 0, 4, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = weaponClr;
+      ctx.beginPath(); ctx.arc(s+31, 0, 2.5, 0, Math.PI*2); ctx.fill();
+      break;
+  }
+  ctx.restore();
+}
+
+function drawPlayerAvatar(x,y,angle,color,alpha=1,weaponName=null,weaponClr='#ffdd44') {
+  if (weaponName) drawWeapon(x, y, angle, weaponName, weaponClr, alpha);
   ctx.save();
   ctx.globalAlpha=alpha*0.22;ctx.shadowColor='#00ffaa';ctx.shadowBlur=22;ctx.fillStyle='#00ffaa';
   ctx.beginPath();ctx.arc(x,y,PR+6,0,Math.PI*2);ctx.fill();
@@ -985,6 +1052,7 @@ function drawPlayerAvatar(x,y,angle,color,alpha=1) {
 }
 function drawPeer(p) {
   const alive=p.alive!==false, alpha=alive?0.85:0.2;
+  if (p.weapon) drawWeapon(p.renderX, p.renderY, p.angle||0, p.weapon, p.weaponClr||'#ffdd44', alpha);
   ctx.save();
   ctx.globalAlpha=alpha*0.2;ctx.shadowColor='#00ccff';ctx.shadowBlur=20;ctx.fillStyle='#00ccff';
   ctx.beginPath();ctx.arc(p.renderX,p.renderY,PR+6,0,Math.PI*2);ctx.fill();
@@ -1128,7 +1196,7 @@ function drawMenuOverlay() {
   for(const p of peers.values()) if(p) drawPeer(p);
 
   // Player in lobby
-  drawPlayerAvatar(player.x,player.y,player.angle,player.color,1);
+  { const pw=getWeapon(player.level); drawPlayerAvatar(player.x,player.y,player.angle,player.color,1,pw.name,pw.clr); }
 
   if(notifT>0){
     ctx.save();ctx.globalAlpha=Math.min(1,notifT);ctx.fillStyle=notifClr;ctx.shadowColor=notifClr;ctx.shadowBlur=18;
@@ -1288,7 +1356,7 @@ function render() {
     drawBoss(boss);
     for(const p of peers.values()) if(p) drawPeer(p);
     if(player.iframes<=0||Math.floor(t*10)%2===0)
-      drawPlayerAvatar(player.x,player.y,player.angle,player.color,1);
+      { const pw=getWeapon(player.level); drawPlayerAvatar(player.x,player.y,player.angle,player.color,1,pw.name,pw.clr); }
     drawHUD();
   } else if (state==='menu') {
     drawMenuOverlay();

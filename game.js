@@ -541,7 +541,7 @@ addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 let mouseX=W/2, mouseY=H/2, mouseDown=false;
 let _volDrag=false;
 // Volume slider constants (used in draw + input)
-const VOL_CX=W/2-200, VOL_Y=H/2+158, VOL_W=190, VOL_H=20;
+const VOL_CX=W/2-200, VOL_Y=H/2+178, VOL_W=190, VOL_H=20;
 
 function _applyVolSlider(mx) {
   musicVolume = Math.max(0, Math.min(1, (mx-(VOL_CX-VOL_W/2))/VOL_W));
@@ -574,8 +574,8 @@ function hitBtn(mx,my,bx,by) {
 // Click only used for dead screen now
 function handleClick(mx,my) {
   if (state==='paused') {
-    if (hitBtn(mx,my,W/2-200,H/2+18))  { state='playing'; musicPlay();  updateCursor(); }
-    if (hitBtn(mx,my,W/2-200,H/2+90))  { movePortals(true); state='menu'; musicPause(); updateCursor(); }
+    if (hitBtn(mx,my,W/2-200,H/2+14))  { state='playing'; musicPlay();  updateCursor(); }
+    if (hitBtn(mx,my,W/2-200,H/2+82))  { movePortals(true); state='menu'; musicPause(); updateCursor(); }
   }
   if (state==='dead') {
     if (hitBtn(mx,my,W/2-200,H/2+58))  { initGame(); state='playing'; musicPlay();  updateCursor(); }
@@ -1493,7 +1493,7 @@ function drawWaveCountdown() {
 // ── HUD ───────────────────────────────────────────────────────────
 function drawHUD() {
   const w=getWeapon(player.level);
-  const bx=WALL+12,by=H-WALL-62,bw=230,bh=14;
+  const bx=WALL+12,by=H-WALL-140,bw=230,bh=14;
 
   ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(bx,by,bw,bh);
   ctx.fillStyle=player.iframes>0?'#ff8899':'#ff4455';ctx.fillRect(bx,by,bw*(player.hp/player.maxHp),bh);
@@ -1568,24 +1568,24 @@ function drawMenuOverlay() {
   ctx.font='bold 148px ui-sans-serif,sans-serif';ctx.textAlign='center';
   ctx.fillText('SPHEROCIDE',W/2,H*0.18);
   ctx.fillStyle='#c64bff';ctx.font='32px ui-sans-serif,sans-serif';ctx.shadowBlur=0;
-  ctx.fillText('Co-op shooter  ·  survive the waves  ·  level up',W/2,H*0.25);
+  ctx.fillText('Co-op shooter  ·  survive the waves  ·  level up',W/2,H*0.24);
   ctx.fillStyle='rgba(255,255,255,0.45)';ctx.font='24px ui-sans-serif,sans-serif';
-  ctx.fillText('WASD to move  ·  Mouse to aim  ·  Click to shoot  ·  Up to 6 co-op',W/2,H*0.29);
-  // Weapon tier row
+  ctx.fillText('WASD to move  ·  Mouse to aim  ·  Click to shoot  ·  Up to 6 co-op',W/2,H*0.28);
+  // Weapon tier row  (Lv label + name, 22px gap between)
   const startX=W/2-(WEAPONS.length*130)/2+65;
   for(let i=0;i<WEAPONS.length;i++){
     const ww=WEAPONS[i];
-    ctx.fillStyle=ww.clr;ctx.shadowColor=ww.clr;ctx.shadowBlur=8;ctx.font='bold 21px ui-sans-serif,sans-serif';ctx.textAlign='center';
-    ctx.fillText(`Lv${ww.lv}`,startX+i*130,H*0.34);
+    ctx.fillStyle=ww.clr;ctx.shadowColor=ww.clr;ctx.shadowBlur=8;ctx.font='bold 22px ui-sans-serif,sans-serif';ctx.textAlign='center';
+    ctx.fillText(`Lv${ww.lv}`,startX+i*130,H*0.33);
     ctx.shadowBlur=0;ctx.fillStyle='rgba(255,255,255,0.65)';ctx.font='20px ui-sans-serif,sans-serif';
-    ctx.fillText(ww.name,startX+i*130,H*0.34+15);
+    ctx.fillText(ww.name,startX+i*130,H*0.33+22);
   }
-  // Buff row
+  // Buff row — placed 38px below weapon name row bottom to avoid overlap
   const bStartX=W/2-(BUFF_DEFS.length*140)/2+70;
   for(let i=0;i<BUFF_DEFS.length;i++){
     const bd=BUFF_DEFS[i];
     ctx.fillStyle=bd.clr;ctx.shadowColor=bd.clr;ctx.shadowBlur=6;ctx.font='bold 20px ui-sans-serif,sans-serif';ctx.textAlign='center';
-    ctx.fillText(`★ ${bd.name}`,bStartX+i*140,H*0.38);
+    ctx.fillText(`★ ${bd.name}`,bStartX+i*140,H*0.41);
   }
   ctx.restore();
 
@@ -1727,41 +1727,39 @@ function drawPauseScreen() {
   // Dim the frozen game world behind the overlay
   ctx.fillStyle='rgba(8,3,18,0.72)'; ctx.fillRect(0,0,W,H);
 
-  // Title
+  // ── Title – full-width centre so it bridges both columns
+  // baseline y = H/2-110
   ctx.save();
   ctx.shadowColor='#c64bff'; ctx.shadowBlur=28;
   ctx.fillStyle='#f4f4ff'; ctx.font='bold 110px ui-sans-serif,sans-serif';
-  ctx.textAlign='center'; ctx.fillText('PAUSED', W/2, H/2-100);
+  ctx.textAlign='center'; ctx.fillText('PAUSED', W/2, H/2-110);
   ctx.restore();
 
-  // Stats line
-  ctx.fillStyle='rgba(255,255,255,0.55)'; ctx.font='30px ui-sans-serif,sans-serif';
+  // Stats line – baseline y = H/2-52  (≈58px below title baseline, clear of descenders)
+  ctx.fillStyle='rgba(255,255,255,0.55)'; ctx.font='28px ui-sans-serif,sans-serif';
   ctx.textAlign='center';
-  ctx.fillText(`Wave ${wave}  ·  Level ${player.level}  ·  ${kills} kills`, W/2, H/2-46);
+  ctx.fillText(`Wave ${wave}  ·  Level ${player.level}  ·  ${kills} kills`, W/2, H/2-52);
 
-  // Buttons (left of centre)
-  drawButton('RESUME',   W/2-200, H/2+18, '#44ff88');
-  drawButton('END GAME', W/2-200, H/2+90, '#ff4455');
+  // RESUME  button – centre y = H/2+14   (≈66px below stats baseline)
+  drawButton('RESUME',   W/2-200, H/2+14,  '#44ff88');
+  // END GAME button – centre y = H/2+82   (68px below RESUME centre)
+  drawButton('END GAME', W/2-200, H/2+82,  '#ff4455');
 
-  // Hint
-  ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.font='22px ui-sans-serif,sans-serif';
-  ctx.textAlign='center';
-  ctx.fillText('Press Esc to resume', W/2-200, H/2+140);
-
-  // Volume slider
+  // Volume slider – label at y = VOL_Y-16, slider at y = VOL_Y
+  // VOL_Y = H/2+178 → label at H/2+162, slider at H/2+178
+  // Gap from END GAME bottom (H/2+82+24=H/2+106) to label (H/2+162) = 56px  ✓
   const vx=VOL_CX-VOL_W/2, vw=VOL_W, vy=VOL_Y;
+  ctx.fillStyle='rgba(255,255,255,0.6)'; ctx.font='22px ui-sans-serif,sans-serif';
+  ctx.textAlign='left';  ctx.fillText('VOLUME', vx, vy-16);
+  ctx.textAlign='right'; ctx.fillText(`${Math.round(musicVolume*100)}%`, vx+vw, vy-16);
   ctx.fillStyle='rgba(255,255,255,0.18)'; ctx.fillRect(vx,vy-4,vw,8);
   ctx.fillStyle='#c64bff'; ctx.fillRect(vx,vy-4,vw*musicVolume,8);
-  // Handle
   const hx=vx+vw*musicVolume;
   ctx.save(); ctx.shadowColor='#c64bff'; ctx.shadowBlur=10;
   ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(hx,vy,9,0,Math.PI*2); ctx.fill();
   ctx.restore();
-  ctx.fillStyle='rgba(255,255,255,0.6)'; ctx.font='24px ui-sans-serif,sans-serif';
-  ctx.textAlign='left'; ctx.fillText('VOLUME', vx, vy-14);
-  ctx.textAlign='right'; ctx.fillText(`${Math.round(musicVolume*100)}%`, vx+vw, vy-14);
 
-  // Leaderboard (right of centre)
+  // ── Right column – leaderboard centred at (W/2+260, H/2)
   drawLeaderboard(W/2+260, H/2, 'LEADERBOARD');
 }
 

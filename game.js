@@ -349,7 +349,20 @@ function shoot() {
   const w    = getWeapon(player.level);
   const cd   = player.buffs.rapid  >0 ? w.cd*0.55 : w.cd;
   const base = Math.atan2(mouseY-player.y, mouseX-player.x);
-  if (w.beam) { fireBeam(base, w.dmg, w.clr); shotCd=cd; return; }
+  if (w.beam) {
+    const beamOpts = {
+      splash:      player.buffs.splash   >0 ? 70  : 0,
+      wallBounces: player.buffs.bouncing >0 ? 2   : 0,
+      ricochet:    player.buffs.ricochet >0,
+    };
+    if (player.buffs.spread>0) {
+      // Three fanned beams when spread is active
+      for (let i=-1; i<=1; i++) fireBeam(base+i*0.22, w.dmg, w.clr, {...beamOpts, hit:new Set()});
+    } else {
+      fireBeam(base, w.dmg, w.clr, beamOpts);
+    }
+    shotCd=cd; return;
+  }
   const n    = player.buffs.spread >0 ? w.n+2     : w.n;
   const aoe  = player.buffs.splash >0 ? Math.max(w.aoe,80) : w.aoe;
   const spr  = player.buffs.spread >0 ? w.spr+0.26 : w.spr;
@@ -369,32 +382,77 @@ function shoot() {
 }
 
 // ── Plasma beam raycast ───────────────────────────────────────────
-function fireBeam(angle, dmg, clr) {
-  const dx = Math.cos(angle), dy = Math.sin(angle);
-  const hit = new Set();
-  let endX = player.x, endY = player.y;
-  for (let dist = 8; dist < 2200; dist += 8) {
-    const cx = player.x + dx*dist, cy = player.y + dy*dist;
-    // Stop at outer walls
-    if (cx < WALL || cx > W-WALL || cy < WALL || cy > H-WALL) { endX=cx; endY=cy; break; }
+// opts: { splash, wallBounces, ricochet, sx, sy, hit, depth }
+function fireBeam(angle, dmg, clr, opts={}) {
+  const {
+    splash=0, wallBounces=0, ricochet=false,
+    sx=player.x, sy=player.y,
+    hit=new Set(), depth=0,
+  } = opts;
+  if (depth > 6) return; // safety cap against runaway recursion
+
+  let dx=Math.cos(angle), dy=Math.sin(angle);
+  let endX=sx, endY=sy;
+  let bounceX=null, bounceY=null, bounceAngle=null;
+
+  for (let dist=8; dist<2200; dist+=8) {
+    const cx=sx+dx*dist, cy=sy+dy*dist;
+
+    // Wall hit — reflect if bounces remain, otherwise stop
+    if (cx<WALL||cx>W-WALL||cy<WALL||cy>H-WALL) {
+      endX=cx; endY=cy;
+      if (wallBounces>0) {
+        const ndx = (cx<WALL||cx>W-WALL) ? -dx : dx;
+        const ndy = (cy<WALL||cy>H-WALL) ? -dy : dy;
+        bounceX=Math.max(WALL+2,Math.min(W-WALL-2,cx));
+        bounceY=Math.max(WALL+2,Math.min(H-WALL-2,cy));
+        bounceAngle=Math.atan2(ndy,ndx);
+      }
+      break;
+    }
     endX=cx; endY=cy;
-    // Stop at furniture (solid cover)
+
+    // Stop at furniture
     let blocked=false;
     for (const f of FURNITURE) {
-      if (cx>=f.x && cx<=f.x+f.w && cy>=f.y && cy<=f.y+f.h) { blocked=true; break; }
+      if (cx>=f.x&&cx<=f.x+f.w&&cy>=f.y&&cy<=f.y+f.h){blocked=true;break;}
     }
     if (blocked) break;
-    // Damage enemies along path (pierce — hit each once)
+
+    // Damage enemies along path (each hit once per full beam chain)
     for (const e of enemies) {
-      if (!hit.has(e) && Math.hypot(cx-e.x, cy-e.y) < e.r+6) {
-        e.hp -= dmg; hit.add(e); createExplosion(e.x, e.y, 18, clr);
+      if (!hit.has(e) && Math.hypot(cx-e.x,cy-e.y)<e.r+6) {
+        e.hp-=dmg; hit.add(e);
+        createExplosion(e.x,e.y,splash>0?splash:18,clr);
+        if (splash>0) { // splash: damage nearby enemies too
+          for (const o of enemies) if(!hit.has(o)&&Math.hypot(e.x-o.x,e.y-o.y)<splash){o.hp-=dmg*0.4;hit.add(o);}
+          if (boss&&Math.hypot(e.x-boss.x,e.y-boss.y)<splash) boss.hp-=dmg*0.4;
+        }
+        if (ricochet) { // ricochet: bend beam to nearest un-hit enemy
+          let nearest=null,nearestD=500;
+          for (const o of enemies){if(hit.has(o))continue;const d=Math.hypot(cx-o.x,cy-o.y);if(d<nearestD){nearest=o;nearestD=d;}}
+          if (nearest) {
+            endX=cx; endY=cy;
+            beams.push({x1:sx,y1:sy,x2:endX,y2:endY,clr,life:0.18,maxLife:0.18});
+            fireBeam(Math.atan2(nearest.y-cy,nearest.x-cx),dmg,clr,{...opts,sx:cx,sy:cy,hit,depth:depth+1});
+            return;
+          }
+        }
       }
     }
-    if (boss && !hit.has(boss) && Math.hypot(cx-boss.x, cy-boss.y) < boss.r+6) {
-      boss.hp -= dmg; hit.add(boss); createExplosion(boss.x, boss.y, 28, clr);
+    if (boss&&!hit.has(boss)&&Math.hypot(cx-boss.x,cy-boss.y)<boss.r+6) {
+      boss.hp-=dmg; hit.add(boss);
+      createExplosion(boss.x,boss.y,splash>0?Math.max(28,splash):28,clr);
+      if (splash>0){for(const o of enemies)if(!hit.has(o)&&Math.hypot(boss.x-o.x,boss.y-o.y)<splash){o.hp-=dmg*0.4;hit.add(o);}}
     }
   }
-  beams.push({ x1:player.x, y1:player.y, x2:endX, y2:endY, clr, life:0.18, maxLife:0.18 });
+
+  beams.push({x1:sx,y1:sy,x2:endX,y2:endY,clr,life:0.18,maxLife:0.18});
+
+  // Continue reflected beam if wall bounce remaining
+  if (bounceAngle!==null && wallBounces>0) {
+    fireBeam(bounceAngle,dmg,clr,{...opts,sx:bounceX,sy:bounceY,wallBounces:wallBounces-1,hit,depth:depth+1});
+  }
 }
 
 // ── XP / Level ────────────────────────────────────────────────────

@@ -70,7 +70,7 @@ const ZONES = [
     pillarFill:'#0c0c22', pillarStroke:'#6060cc',
     tableFill:'#080818',  tableStroke:'#404080', tableDetail:'rgba(100,100,200,0.3)' },
 ];
-function getZone() { return ZONES[Math.min(Math.floor(wave/5), ZONES.length-1)]; }
+function getZone() { return ZONES[Math.min(Math.floor((wave||0)/5), ZONES.length-1)]; }
 const MAX_PLAYERS = 6;
 const WAVE_DELAY  = 30;   // seconds between waves
 

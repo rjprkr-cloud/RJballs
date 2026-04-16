@@ -418,6 +418,8 @@ function lbSubmit(entry) {
   lbSave(all.slice(0, MAX_LB));
 }
 function calcScore(wave, kills, level) { return wave * 500 + kills * 50 + level * 100; }
+// Damage multiplier: doubles every 8 waves (wave 8 = 2×, 16 = 4×, 24 = 8×…)
+function enemyDmgMult() { return Math.pow(2, Math.floor(wave / 8)); }
 
 const peerScores = new Map(); // peerId → leaderboard entry
 let sendScore = null;
@@ -672,7 +674,7 @@ function update(dt) {
     if (boss.charging){boss.chargeDur-=dt;if(boss.chargeDur<=0)boss.charging=false;}
 
     if (player.iframes<=0&&Math.hypot(player.x-boss.x,player.y-boss.y)<PR+boss.r){
-      player.hp-=boss.dmg*dt*2.5;player.iframes=0.55;
+      player.hp-=boss.dmg*dt*2.5*enemyDmgMult();player.iframes=0.55;
     }
     if (boss.hp<=0){
       gainXP(boss.xp);kills++;
@@ -701,7 +703,7 @@ function update(dt) {
     }
     e.x=ex;e.y=ey;e.angle=Math.atan2(edy,edx);
     if(player.iframes<=0&&Math.hypot(player.x-e.x,player.y-e.y)<PR+e.r){
-      player.hp-=e.dmg*dt*2.5;player.iframes=0.55;
+      player.hp-=e.dmg*dt*2.5*enemyDmgMult();player.iframes=0.55;
     }
   }
   player.iframes=Math.max(0,player.iframes-dt);
@@ -712,7 +714,7 @@ function update(dt) {
     b.x+=b.vx;b.y+=b.vy;b.life-=dt;
     if(b.life<=0||b.x<WALL||b.x>W-WALL||b.y<WALL||b.y>H-WALL){b.dead=true;continue;}
     if(player.iframes<=0&&Math.hypot(b.x-player.x,b.y-player.y)<PR+b.r){
-      player.hp-=b.dmg;player.iframes=0.4;b.dead=true;
+      player.hp-=b.dmg*enemyDmgMult();player.iframes=0.4;b.dead=true;
     }
   }
   enemyBullets=enemyBullets.filter(b=>!b.dead);

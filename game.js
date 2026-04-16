@@ -137,6 +137,7 @@ const BUFF_DEFS = [
   {id:'spread',   name:'SPREAD',   dur:20, clr:'#4488ff'},
   {id:'rapid',    name:'RAPID',    dur:15, clr:'#ffff44'},
   {id:'ricochet', name:'RICOCHET', dur:20, clr:'#ff44aa'},
+  {id:'bomb',     name:'BOMB',     dur:0,  clr:'#ff8800', instant:true},
 ];
 
 // ── Enemy templates ───────────────────────────────────────────────
@@ -262,6 +263,23 @@ function doBossAttack(b) {
     b.chargeDir={x:dx/d,y:dy/d};
     showNotif('BOSS CHARGING!', '#ff8800');
   }
+}
+
+// ── Bomb instant pickup ───────────────────────────────────────────
+function triggerBomb() {
+  // Kill every regular enemy (hp=0 lets the existing filter give XP/kills)
+  for (const e of enemies) {
+    createExplosion(e.x, e.y, e.r * 4, '#ff8800');
+    e.hp = 0;
+  }
+  // Deal 50% of boss max HP as damage — never outright kills the boss
+  if (boss) {
+    boss.hp = Math.max(1, boss.hp - boss.maxHp * 0.5);
+    createExplosion(boss.x, boss.y, 120, '#ff8800');
+  }
+  // Big screen-wide flash
+  createExplosion(W/2, H/2, 500, '#ff8800');
+  showNotif(boss ? '💣 BOMB! BOSS HALF HP!' : '💣 BOMB! ALL ENEMIES WIPED!', '#ff8800');
 }
 
 // ── Shooting ──────────────────────────────────────────────────────
@@ -707,8 +725,8 @@ function update(dt) {
   buffItems=buffItems.filter(item=>{
     item.life-=dt;item.pulse+=dt*3;
     if(Math.hypot(player.x-item.x,player.y-item.y)<PR+16){
-      player.buffs[item.def.id]=item.def.dur;
-      showNotif(`${item.def.name}!`,item.def.clr);
+      if (item.def.instant) { triggerBomb(); }
+      else { player.buffs[item.def.id]=item.def.dur; showNotif(`${item.def.name}!`,item.def.clr); }
       createExplosion(item.x,item.y,26,item.def.clr);
       return false;
     }

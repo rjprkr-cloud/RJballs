@@ -128,7 +128,7 @@ function pickType(wave) {
 }
 
 // ── Game state ────────────────────────────────────────────────────
-let state = 'menu'; // 'menu' | 'playing' | 'dead'
+let state = 'menu'; // 'menu' | 'playing' | 'paused' | 'dead'
 let bullets, enemyBullets, enemies, boss;
 let explosions, buffItems;
 let wave, waveTimer, shotCd, kills, buffSpawnTimer;
@@ -284,6 +284,10 @@ const keys = {};
 addEventListener('keydown', e => {
   keys[e.key.toLowerCase()] = true;
   if (e.key === ' ') e.preventDefault(); // stop spacebar scrolling page
+  if (e.key === 'Escape') {
+    if (state === 'playing') state = 'paused';
+    else if (state === 'paused') state = 'playing';
+  }
 });
 addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
@@ -302,6 +306,10 @@ function hitBtn(mx,my,bx,by) {
 }
 // Click only used for dead screen now
 function handleClick(mx,my) {
+  if (state==='paused') {
+    if (hitBtn(mx,my,W/2,H/2+10))  { state='playing'; }
+    if (hitBtn(mx,my,W/2,H/2+78))  { movePortals(true); state='menu'; }
+  }
   if (state==='dead') {
     if (hitBtn(mx,my,W/2,H/2+45))  { initGame(); state='playing'; }
     if (hitBtn(mx,my,W/2,H/2+108)) { movePortals(true); state='menu'; }
@@ -419,7 +427,7 @@ function update(dt) {
     return;
   }
 
-  if (state==='dead') return;
+  if (state==='dead' || state==='paused') return;
 
   // ── PLAYING STATE ──────────────────────────────────────────────
 
@@ -937,6 +945,32 @@ function drawMenuOverlay() {
   }
 }
 
+function drawPauseScreen() {
+  // Dim the frozen game world behind the overlay
+  ctx.fillStyle='rgba(8,3,18,0.72)'; ctx.fillRect(0,0,W,H);
+
+  // Title
+  ctx.save();
+  ctx.shadowColor='#c64bff'; ctx.shadowBlur=28;
+  ctx.fillStyle='#f4f4ff'; ctx.font='bold 72px ui-sans-serif,sans-serif';
+  ctx.textAlign='center'; ctx.fillText('PAUSED', W/2, H/2-90);
+  ctx.restore();
+
+  // Stats line
+  ctx.fillStyle='rgba(255,255,255,0.55)'; ctx.font='18px ui-sans-serif,sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText(`Wave ${wave}  ·  Level ${player.level}  ·  ${kills} kills`, W/2, H/2-36);
+
+  // Buttons
+  drawButton('RESUME',   W/2, H/2+10, '#44ff88');
+  drawButton('END GAME', W/2, H/2+78, '#ff4455');
+
+  // Hint
+  ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.font='13px ui-sans-serif,sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText('Press Esc to resume', W/2, H/2+126);
+}
+
 function drawDeadScreen() {
   ctx.fillStyle='rgba(8,3,18,0.88)';ctx.fillRect(0,0,W,H);
   ctx.save();ctx.shadowColor='#ff4455';ctx.shadowBlur=30;
@@ -970,6 +1004,8 @@ function render() {
     drawHUD();
   } else if (state==='menu') {
     drawMenuOverlay();
+  } else if (state==='paused') {
+    drawPauseScreen();
   } else if (state==='dead') {
     drawDeadScreen();
   }

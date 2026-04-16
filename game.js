@@ -176,9 +176,8 @@ const SOLID = [...WALLS, ...FURNITURE];
 
 // ── Walk-on menu pads ─────────────────────────────────────────────
 const WALK_PADS = [
-  { id:'start',  x:W/2-380, y:H*0.64, w:240, h:100, label:'START',  sub:'stand to begin',  clr:'#44ff88', timer:0 },
-  { id:'scores', x:W/2,     y:H*0.64, w:240, h:100, label:'SCORES', sub:'stand to view',   clr:'#44ddff', timer:0 },
-  { id:'end',    x:W/2+380, y:H*0.64, w:240, h:100, label:'END',    sub:'stand to leave',  clr:'#ff4455', timer:0 },
+  { id:'start',  x:W/2-190, y:H*0.64, w:240, h:100, label:'START',  sub:'stand to begin', clr:'#44ff88', timer:0 },
+  { id:'scores', x:W/2+190, y:H*0.64, w:240, h:100, label:'SCORES', sub:'stand to view',  clr:'#44ddff', timer:0 },
 ];
 const PAD_HOLD = 1.0; // seconds to hold before activating
 

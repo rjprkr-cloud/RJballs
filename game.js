@@ -423,6 +423,7 @@ addEventListener('keydown', e => {
     else if (state === 'paused') { state = 'playing'; musicPlay(); }
     updateCursor();
   }
+  if (e.key === '=' && state === 'playing') triggerBomb();
 });
 addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 

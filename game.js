@@ -281,8 +281,11 @@ function createExplosion(x, y, maxR, clr='#ff4400') {
 
 // ── Input ─────────────────────────────────────────────────────────
 const keys = {};
-addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; });
-addEventListener('keyup',   e => { keys[e.key.toLowerCase()] = false; });
+addEventListener('keydown', e => {
+  keys[e.key.toLowerCase()] = true;
+  if (e.key === ' ') e.preventDefault(); // stop spacebar scrolling page
+});
+addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
 let mouseX=W/2, mouseY=H/2, mouseDown=false;
 canvas.addEventListener('mousemove', e => {
@@ -423,9 +426,9 @@ function update(dt) {
   // Buff timers
   for (const id of Object.keys(player.buffs)) player.buffs[id]=Math.max(0,player.buffs[id]-dt);
 
-  // Shoot
+  // Shoot (click OR spacebar)
   shotCd=Math.max(0,shotCd-dt);
-  if (mouseDown&&shotCd===0) shoot();
+  if ((mouseDown||keys[' '])&&shotCd===0) shoot();
 
   // ── Player bullets
   for (const b of bullets) {
@@ -799,7 +802,7 @@ function drawWaveCountdown() {
   ctx.save();
   ctx.strokeStyle='rgba(255,200,0,0.2)';ctx.lineWidth=4;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();
   ctx.strokeStyle='#ffdd44';ctx.shadowColor='#ffdd44';ctx.shadowBlur=10;ctx.lineWidth=4;
-  ctx.beginPath();ctx.arc(cx,cy,-Math.PI/2,-Math.PI/2+(1-progress)*Math.PI*2,false);ctx.stroke();
+  ctx.beginPath();ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+(1-progress)*Math.PI*2,false);ctx.stroke();
   ctx.restore();
   ctx.fillStyle='#ffdd44';ctx.font='bold 14px ui-sans-serif,sans-serif';ctx.textAlign='center';
   ctx.fillText(enemies.length===0&&sec<=5?`Next wave: ${sec}s`:`Wave ${wave}`,cx,cy+5);

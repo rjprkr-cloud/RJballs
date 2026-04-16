@@ -13,7 +13,7 @@ function updateCursor() {
 // ── Music ─────────────────────────────────────────────────────────
 const music = new Audio('music.mp3');
 music.loop = true;
-let musicVolume = 0.55;
+let musicVolume = 0.30;
 music.volume = musicVolume;
 
 // musicPlay() is called from the RAF loop (not a direct user gesture).

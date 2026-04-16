@@ -14,20 +14,19 @@ function updateCursor() {
 const music = new Audio('music.mp3');
 music.loop = true;
 music.volume = 0.55;
-function musicPlay()  { if (music.paused) music.play().catch(()=>{}); }
-function musicPause() { if (!music.paused) music.pause(); }
 
-// Browsers block Audio.play() unless it originates from a user gesture.
-// Prime the audio context on the very first input so musicPlay() works
-// from anywhere in the code (RAF, pad walk-on, etc.).
-let _audioUnlocked = false;
-function _unlockAudio() {
-  if (_audioUnlocked) return;
-  _audioUnlocked = true;
-  music.play().then(() => { if (state !== 'playing') music.pause(); }).catch(()=>{});
+// musicPlay() is called from the RAF loop (not a direct user gesture).
+// If the browser blocks autoplay, we set up one-shot retry listeners so
+// music starts the moment the player next touches a key or clicks.
+function musicPlay() {
+  if (!music.paused) return;
+  music.play().catch(() => {
+    const tryAgain = () => { if (!music.paused) return; music.play().catch(()=>{}); };
+    addEventListener('mousedown', tryAgain, { once: true });
+    addEventListener('keydown',   tryAgain, { once: true });
+  });
 }
-addEventListener('mousedown', _unlockAudio, { once: true });
-addEventListener('keydown',   _unlockAudio, { once: true });
+function musicPause() { if (!music.paused) music.pause(); }
 
 // ── Portal protocol ───────────────────────────────────────────────
 const incoming   = Portal.readPortalParams();

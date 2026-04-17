@@ -1555,29 +1555,135 @@ function drawFloor() {
 function drawWalls() {
   const z=getZone();
   ctx.shadowBlur=0;
-  ctx.fillStyle=z.wall;
-  ctx.fillRect(0,0,W,WALL);ctx.fillRect(0,H-WALL,W,WALL);
-  ctx.fillRect(0,0,WALL,H);ctx.fillRect(W-WALL,0,WALL,H);
+
+  // Helper: darken/lighten a hex color by an amount (-1..1)
+  function shadeHex(hex,amt){
+    let c=hex.replace('#','');
+    if(c.length===3)c=c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+    const r=Math.min(255,Math.max(0,parseInt(c.slice(0,2),16)+amt));
+    const g=Math.min(255,Math.max(0,parseInt(c.slice(2,4),16)+amt));
+    const b=Math.min(255,Math.max(0,parseInt(c.slice(4,6),16)+amt));
+    return`#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+  }
+
+  const wallMain = z.wall;
+  const wallDark = shadeHex(z.wall, -40);
+  const wallCap  = shadeHex(z.wall, 55);   // bright inner-edge strip (top surface)
+  const INNER = 7;  // width of the inner cap strip (the "top face" of the raised wall)
+
+  // ── Main wall body (all 4 sides) ──
+  // Top wall
+  let gTop=ctx.createLinearGradient(0,0,0,WALL);
+  gTop.addColorStop(0,wallDark);gTop.addColorStop(0.6,wallMain);gTop.addColorStop(1,wallCap);
+  ctx.fillStyle=gTop; ctx.fillRect(0,0,W,WALL);
+  // Bottom wall
+  let gBot=ctx.createLinearGradient(0,H-WALL,0,H);
+  gBot.addColorStop(0,wallCap);gBot.addColorStop(0.4,wallMain);gBot.addColorStop(1,wallDark);
+  ctx.fillStyle=gBot; ctx.fillRect(0,H-WALL,W,WALL);
+  // Left wall
+  let gLeft=ctx.createLinearGradient(0,0,WALL,0);
+  gLeft.addColorStop(0,wallDark);gLeft.addColorStop(0.6,wallMain);gLeft.addColorStop(1,wallCap);
+  ctx.fillStyle=gLeft; ctx.fillRect(0,0,WALL,H);
+  // Right wall
+  let gRight=ctx.createLinearGradient(W-WALL,0,W,0);
+  gRight.addColorStop(0,wallCap);gRight.addColorStop(0.4,wallMain);gRight.addColorStop(1,wallDark);
+  ctx.fillStyle=gRight; ctx.fillRect(W-WALL,0,WALL,H);
+
+  // ── Inner-edge cap strip (bright, simulating top surface facing player) ──
+  ctx.fillStyle=wallCap;
+  ctx.fillRect(0,WALL-INNER,W,INNER);           // top wall inner edge
+  ctx.fillRect(0,H-WALL,W,INNER);               // bottom wall inner edge
+  ctx.fillRect(WALL-INNER,0,INNER,H);           // left wall inner edge
+  ctx.fillRect(W-WALL,0,INNER,H);               // right wall inner edge
+
+  // ── Interior drop shadow (gives depth impression on the floor) ──
+  const SH=14;
+  const shadowGrad=(x1,y1,x2,y2)=>{
+    const g=ctx.createLinearGradient(x1,y1,x2,y2);
+    g.addColorStop(0,'rgba(0,0,0,0.28)');g.addColorStop(1,'rgba(0,0,0,0)');return g;
+  };
+  ctx.fillStyle=shadowGrad(0,WALL,0,WALL+SH); ctx.fillRect(WALL,WALL,W-WALL*2,SH);
+  ctx.fillStyle=shadowGrad(0,H-WALL,0,H-WALL-SH); ctx.fillRect(WALL,H-WALL-SH,W-WALL*2,SH);
+  ctx.fillStyle=shadowGrad(WALL,0,WALL+SH,0); ctx.fillRect(WALL,WALL,SH,H-WALL*2);
+  ctx.fillStyle=shadowGrad(W-WALL,0,W-WALL-SH,0); ctx.fillRect(W-WALL-SH,WALL,SH,H-WALL*2);
+
+  // ── Border line & corner brackets ──
   ctx.strokeStyle=z.wallBorder;ctx.lineWidth=2;ctx.strokeRect(WALL,WALL,W-WALL*2,H-WALL*2);
-  ctx.strokeStyle=z.corner;ctx.lineWidth=2;
+  ctx.strokeStyle=z.corner;ctx.lineWidth=2.5;
   for (const[cx,cy,sx,sy] of [[WALL,WALL,1,1],[W-WALL,WALL,-1,1],[WALL,H-WALL,1,-1],[W-WALL,H-WALL,-1,-1]]){
-    const B=18;ctx.beginPath();ctx.moveTo(cx+sx*B,cy);ctx.lineTo(cx,cy);ctx.lineTo(cx,cy+sy*B);ctx.stroke();
+    const B=22;ctx.beginPath();ctx.moveTo(cx+sx*B,cy);ctx.lineTo(cx,cy);ctx.lineTo(cx,cy+sy*B);ctx.stroke();
   }
 }
 function drawFurniture() {
   const z=getZone();
+
+  // Shade a hex color by amt (-255..255)
+  function shadeHex(hex,amt){
+    let c=hex.replace('#','');
+    if(c.length===3)c=c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+    const r=Math.min(255,Math.max(0,parseInt(c.slice(0,2),16)+amt));
+    const g=Math.min(255,Math.max(0,parseInt(c.slice(2,4),16)+amt));
+    const b=Math.min(255,Math.max(0,parseInt(c.slice(4,6),16)+amt));
+    return`#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+  }
+
+  // Draw a 3D block at (x,y,w,h) with isometric depth D
+  // topClr = top face, rightClr = right side, botClr = bottom side
+  function draw3DBlock(x,y,w,h,topClr,strokeClr,D){
+    // ── Bottom face (darkest, south extrusion) ──
+    ctx.fillStyle=shadeHex(topClr,-60);
+    ctx.beginPath();
+    ctx.moveTo(x,y+h);ctx.lineTo(x+w,y+h);
+    ctx.lineTo(x+w+D,y+h+D);ctx.lineTo(x+D,y+h+D);
+    ctx.closePath();ctx.fill();
+
+    // ── Right face (dark, east extrusion) ──
+    ctx.fillStyle=shadeHex(topClr,-35);
+    ctx.beginPath();
+    ctx.moveTo(x+w,y);ctx.lineTo(x+w+D,y+D);
+    ctx.lineTo(x+w+D,y+h+D);ctx.lineTo(x+w,y+h);
+    ctx.closePath();ctx.fill();
+
+    // ── Top face (main color) ──
+    ctx.fillStyle=topClr;
+    ctx.fillRect(x,y,w,h);
+
+    // ── Top-left highlight strip (bright edge = lit top surface) ──
+    const HL=4;
+    ctx.fillStyle='rgba(255,255,255,0.18)';
+    ctx.fillRect(x,y,w,HL);       // top edge lit
+    ctx.fillRect(x,y,HL,h);       // left edge lit
+
+    // ── Strokes ──
+    // Extrusion outline
+    ctx.strokeStyle=shadeHex(strokeClr,-30);ctx.lineWidth=1;
+    ctx.beginPath();
+    // right face outline
+    ctx.moveTo(x+w,y);ctx.lineTo(x+w+D,y+D);ctx.lineTo(x+w+D,y+h+D);ctx.lineTo(x+w,y+h);
+    // bottom face outline
+    ctx.moveTo(x,y+h);ctx.lineTo(x+D,y+h+D);ctx.lineTo(x+w+D,y+h+D);
+    ctx.stroke();
+    // Top face border
+    ctx.strokeStyle=strokeClr;ctx.lineWidth=1.5;
+    ctx.strokeRect(x,y,w,h);
+  }
+
+  const D=7; // isometric depth in pixels
+
   for (const f of FURNITURE) {
     if (f.type==='pillar'){
-      ctx.fillStyle=z.pillarFill; ctx.fillRect(f.x,f.y,f.w,f.h);
-      ctx.strokeStyle=z.pillarStroke; ctx.lineWidth=1.5; ctx.strokeRect(f.x,f.y,f.w,f.h);
+      draw3DBlock(f.x,f.y,f.w,f.h,z.pillarFill,z.pillarStroke,D);
     } else if (f.type==='table'){
-      ctx.fillStyle=z.tableFill; ctx.fillRect(f.x,f.y,f.w,f.h);
-      ctx.strokeStyle=z.tableStroke; ctx.lineWidth=1.5; ctx.strokeRect(f.x,f.y,f.w,f.h);
-      ctx.strokeStyle=z.tableDetail; ctx.lineWidth=1;
-      for(let lx=f.x+12;lx<f.x+f.w-4;lx+=14){ctx.beginPath();ctx.moveTo(lx,f.y+6);ctx.lineTo(lx,f.y+f.h-6);ctx.stroke();}
+      draw3DBlock(f.x,f.y,f.w,f.h,z.tableFill,z.tableStroke,D);
+      // Table surface detail lines
+      ctx.strokeStyle=z.tableDetail;ctx.lineWidth=1;ctx.globalAlpha=0.7;
+      for(let lx=f.x+12;lx<f.x+f.w-4;lx+=14){
+        ctx.beginPath();ctx.moveTo(lx,f.y+6);ctx.lineTo(lx,f.y+f.h-6);ctx.stroke();
+      }
+      ctx.globalAlpha=1;
     } else {
-      ctx.fillStyle=z.pillarFill; ctx.fillRect(f.x,f.y,f.w,f.h);
-      ctx.strokeStyle=z.pillarStroke; ctx.lineWidth=1.5; ctx.strokeRect(f.x,f.y,f.w,f.h);
+      // bench or other
+      draw3DBlock(f.x,f.y,f.w,f.h,z.pillarFill,z.pillarStroke,D);
     }
   }
 }

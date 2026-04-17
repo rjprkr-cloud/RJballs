@@ -14,6 +14,14 @@ function updateCursor() {
 const music = new Audio('music.mp3');
 music.loop = true;
 let musicVolume = 0.30;
+
+// ── Game-over sting ───────────────────────────────────────────────
+const gameOverSfx = new Audio('game-over.mp3');
+gameOverSfx.volume = 0.85;
+function playGameOver() {
+  gameOverSfx.currentTime = 0;
+  gameOverSfx.play().catch(() => {});
+}
 music.volume = musicVolume;
 
 // musicPlay() is called from the RAF loop (not a direct user gesture).
@@ -1366,7 +1374,7 @@ function update(dt) {
     if (waveTimer<=0) spawnWave();
   }
 
-  if (player.hp<=0){player.hp=0;state='dead';musicPause();music.currentTime=0;submitMyScore();}
+  if (player.hp<=0){player.hp=0;state='dead';musicPause();music.currentTime=0;playGameOver();submitMyScore();}
 }
 
 // ── Draw helpers ──────────────────────────────────────────────────

@@ -108,6 +108,23 @@ function playWeaponSound(name) {
       osc.connect(g); g.connect(ac.destination);
       osc.start(now); osc.stop(now + 0.042);
 
+    } else if (name === 'Mini Gun') {
+      // Deep mechanical thud — low sawtooth blip, very short, dense
+      const osc = ac.createOscillator(), g = ac.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(280, now);
+      osc.frequency.exponentialRampToValueAtTime(80, now + 0.032);
+      g.gain.setValueAtTime(v * 0.42, now);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.032);
+      osc.connect(g); g.connect(ac.destination);
+      osc.start(now); osc.stop(now + 0.032);
+      // Mechanical click layer
+      const ns = _noise(ac, 0.022), ng = ac.createGain();
+      ng.gain.setValueAtTime(v * 0.28, now);
+      ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.022);
+      ns.connect(ng); ng.connect(ac.destination);
+      ns.start(now); ns.stop(now + 0.022);
+
     } else if (name === 'Rocket') {
       // Sawtooth whoosh down + low-pass noise rumble
       const osc = ac.createOscillator(), og = ac.createGain();
@@ -301,42 +318,43 @@ const PAD_HOLD = 1.0; // seconds to hold before activating
 
 // ── Weapons ───────────────────────────────────────────────────────
 const WEAPONS = [
-  {name:'Pistol',  lv:1,  dmg:15, spd:9,  cd:0.42,n:1,spr:0,    pierce:false,aoe:0,  clr:'#ffdd44',br:4},
-  {name:'Dual Pistols', lv:5, dmg:15, spd:9, cd:0.28,n:2,spr:0.12,pierce:false,aoe:0,  clr:'#ffee88',br:4},
-  {name:'Shotgun', lv:9,  dmg:12, spd:9,  cd:0.70,n:5,spr:0.32, pierce:false,aoe:0,  clr:'#ff8833',br:4},
-  {name:'SMG',     lv:13, dmg:9,  spd:13, cd:0.09,n:1,spr:0.10, pierce:false,aoe:0,  clr:'#44aaff',br:3},
-  {name:'Rocket',  lv:17, dmg:90, spd:6,  cd:1.10,n:1,spr:0,    pierce:false,aoe:130,clr:'#ff4444',br:6, double:true},
-  {name:'Plasma',  lv:21, dmg:40, spd:14, cd:0.45,n:1,spr:0,    pierce:true, aoe:0,  clr:'#dd44ff',br:5, beam:true},
+  {name:'Pistol',  lv:1,  dmg:15, spd:540, cd:0.42,n:1,spr:0,    pierce:false,aoe:0,  clr:'#ffdd44',br:4},
+  {name:'Dual Pistols', lv:5, dmg:15, spd:540, cd:0.28,n:2,spr:0.12,pierce:false,aoe:0,  clr:'#ffee88',br:4},
+  {name:'Shotgun', lv:9,  dmg:12, spd:540, cd:0.70,n:5,spr:0.32, pierce:false,aoe:0,  clr:'#ff8833',br:4},
+  {name:'SMG',     lv:13, dmg:9,  spd:780, cd:0.09,n:1,spr:0.10, pierce:false,aoe:0,  clr:'#44aaff',br:3},
+  {name:'Mini Gun', lv:17, dmg:7,  spd:900, cd:0.055,n:2,spr:0.20,pierce:false,aoe:0,  clr:'#ff9900',br:3},
+  {name:'Rocket',  lv:21, dmg:90, spd:360, cd:1.10,n:1,spr:0,    pierce:false,aoe:130,clr:'#ff4444',br:6, double:true},
+  {name:'Plasma',  lv:25, dmg:80, spd:840, cd:0.45,n:1,spr:0,    pierce:true, aoe:0,  clr:'#dd44ff',br:5, beam:true},
 ];
 const getWeapon = lv => [...WEAPONS].reverse().find(w => lv >= w.lv) ?? WEAPONS[0];
 const xpToNext  = lv => 40 + lv * 30;
 
 // ── Buff items ────────────────────────────────────────────────────
 const BUFF_DEFS = [
-  {id:'bouncing', name:'BOUNCE',   dur:45, clr:'#44ffcc'},
-  {id:'splash',   name:'SPLASH',   dur:45, clr:'#ff8844'},
-  {id:'spread',   name:'SPREAD',   dur:45, clr:'#4488ff'},
-  {id:'rapid',    name:'RAPID',    dur:35, clr:'#ffff44'},
-  {id:'ricochet', name:'RICOCHET', dur:45, clr:'#ff44aa'},
+  {id:'bouncing', name:'BOUNCE',   dur:60, clr:'#44ffcc'},
+  {id:'splash',   name:'SPLASH',   dur:60, clr:'#ff8844'},
+  {id:'spread',   name:'SPREAD',   dur:60, clr:'#4488ff'},
+  {id:'rapid',    name:'RAPID',    dur:60, clr:'#ffff44'},
+  {id:'ricochet', name:'RICOCHET', dur:60, clr:'#ff44aa'},
   {id:'bomb',     name:'BOMB',     dur:0,  clr:'#ff8800', instant:true},
 ];
 
 // ── Enemy templates ───────────────────────────────────────────────
 const ETYPES = [
   // ── Regular enemies (all zones)
-  {kind:'Runner',  maxHp:60,  spd:2.4, dmg:36, r:10, clr:'#ff4455', xp:10},
-  {kind:'Brute',   maxHp:220, spd:0.9, dmg:90, r:18, clr:'#ff8800', xp:30},
-  {kind:'Speeder', maxHp:35,  spd:5.2, dmg:16, r:8,  clr:'#ff44cc', xp:15},
+  {kind:'Runner',  maxHp:30,  spd:144, dmg:36, r:10, clr:'#ff4455', xp:10},
+  {kind:'Brute',   maxHp:220, spd:84,  dmg:90, r:18, clr:'#ff8800', xp:30},
+  {kind:'Speeder', maxHp:17,  spd:312, dmg:16, r:8,  clr:'#ff44cc', xp:15},
   // ── Zone 1: Toxic Zone — Spitter (ranged acid shots)
-  {kind:'Spitter', maxHp:70,  spd:1.8, dmg:18, r:11, clr:'#44ff44', xp:22, zone:1, atkCd:3.0},
+  {kind:'Spitter', maxHp:70,  spd:108, dmg:18, r:11, clr:'#44ff44', xp:22, zone:1, atkCd:3.0},
   // ── Zone 2: Volcanic — Ember (explodes violently on death)
-  {kind:'Ember',   maxHp:160, spd:1.4, dmg:40, r:15, clr:'#ff6600', xp:28, zone:2},
+  {kind:'Ember',   maxHp:160, spd:120, dmg:40, r:15, clr:'#ff6600', xp:28, zone:2},
   // ── Zone 3: Arctic — Glacial (ranged ice shards that slow the player)
-  {kind:'Glacial', maxHp:55,  spd:2.8, dmg:12, r:10, clr:'#88ddff', xp:22, zone:3, atkCd:3.5},
+  {kind:'Glacial', maxHp:55,  spd:168, dmg:12, r:10, clr:'#88ddff', xp:22, zone:3, atkCd:3.5},
   // ── Zone 4: Ancient — Phantom (teleports + 35% bullet dodge)
-  {kind:'Phantom', maxHp:85,  spd:2.6, dmg:22, r:11, clr:'#ffcc44', xp:32, zone:4, atkCd:3.5},
+  {kind:'Phantom', maxHp:85,  spd:156, dmg:22, r:11, clr:'#ffcc44', xp:32, zone:4, atkCd:3.5},
   // ── Zone 5: The Void — Wraith (phases through furniture)
-  {kind:'Wraith',  maxHp:95,  spd:3.2, dmg:28, r:12, clr:'#cc99ff', xp:38, zone:5},
+  {kind:'Wraith',  maxHp:95,  spd:192, dmg:28, r:12, clr:'#cc99ff', xp:38, zone:5},
 ];
 const REGULAR_ETYPES = ETYPES.slice(0,3);
 function pickType(wave) {
@@ -361,7 +379,7 @@ let t = 0;
 
 // Player is always live so lobby movement works
 let player = {
-  x: W / 2, y: H / 2 - 80, r: PR, speed: 10,
+  x: W / 2, y: H / 2 - 80, r: PR, speed: 600,
   color: '#' + incoming.color, angle: 0,
   hp: 200, maxHp: 200, level: 1, xp: 0, iframes: 0, slowTimer: 0,
   buffs: {bouncing:0, splash:0, spread:0, rapid:0, ricochet:0},
@@ -421,19 +439,32 @@ function spawnWave() {
     showNotif(`⬡ ENTERING: ${z.name.toUpperCase()} ⬡`, z.pillarStroke);
   }
   if (wave % 5 === 0) {
-    const tier  = Math.floor((wave-5)/5);
-    const bHp   = Math.round(800 * Math.pow(1.35, tier));
-    const pos   = randomEdgePos();
+    const tier    = Math.floor((wave-5)/5);
+    const zoneIdx = Math.min(tier, 5);
+    const bHp     = Math.round(800 * Math.pow(1.35, tier));
+    const pos     = randomEdgePos();
+    // Per-zone boss definitions
+    const BOSS_DEFS = [
+      {name:'VOID STALKER',   clr:'#aa44ff', r:32, spd:132, enrSpd:204, atkCd:2.2, dmg:130},
+      {name:'ACID WORM',      clr:'#44ee44', r:30, spd:96,  enrSpd:150, atkCd:2.8, dmg:120},
+      {name:'MAGMA TITAN',    clr:'#ff6600', r:42, spd:78,  enrSpd:126, atkCd:3.0, dmg:160},
+      {name:'FROST COLOSSUS', clr:'#88ddff', r:36, spd:108, enrSpd:162, atkCd:2.5, dmg:140},
+      {name:'PHANTOM KING',   clr:'#ffcc00', r:30, spd:150, enrSpd:216, atkCd:2.0, dmg:130},
+      {name:'WRAITH LORD',    clr:'#cc44ff', r:36, spd:168, enrSpd:240, atkCd:1.8, dmg:150},
+    ];
+    const bd = BOSS_DEFS[zoneIdx];
     boss = {
-      ...pos, r:32, spd:1.8, dmg:140,
-      hp:bHp, maxHp:bHp, clr:'#cc0033', xp:300+wave*30,
-      atkCd:2.5, atkIdx:0, charging:false, chargeDur:0,
-      chargeDir:{x:0,y:1}, enraged:false, angle:0,
+      ...pos, kind:zoneIdx, name:bd.name,
+      r:bd.r, spd:bd.spd, enrSpd:bd.enrSpd, dmg:bd.dmg,
+      hp:bHp, maxHp:bHp, clr:bd.clr, xp:300+wave*30,
+      atkCd:bd.atkCd, baseAtkCd:bd.atkCd, atkIdx:0,
+      charging:false, chargeDur:0, chargeDir:{x:0,y:1},
+      enraged:false, angle:0, trailTimer:0,
     };
     const minionCount = 4 + (tier*2);
     for (let i=0; i<minionCount; i++) spawnEnemy(ETYPES[0]);
     waveTimer = 9999;
-    showNotif(`★ BOSS WAVE ${wave} ★`, '#ff2244');
+    showNotif(`★ ${bd.name} ★`, bd.clr);
   } else {
     const total = 2 + wave*3;
     for (let i=0; i<total; i++) spawnEnemy(pickType(wave));
@@ -442,38 +473,257 @@ function spawnWave() {
   }
 }
 
-// ── Boss attacks ──────────────────────────────────────────────────
+// ── Boss attacks — dispatched by zone kind ────────────────────────
 function doBossAttack(b) {
-  const phase = b.atkIdx % 3;
   b.atkIdx++;
+  switch (b.kind) {
+    case 0: bossAtk_VoidStalker(b);   break;
+    case 1: bossAtk_AcidWorm(b);      break;
+    case 2: bossAtk_MagmaTitan(b);    break;
+    case 3: bossAtk_FrostColossus(b); break;
+    case 4: bossAtk_PhantomKing(b);   break;
+    case 5: bossAtk_WraithLord(b);    break;
+    default: bossAtk_VoidStalker(b);  break;
+  }
+}
 
+// Zone 0 — VOID STALKER: teleport-and-burst, aimed shots, gravity pull ring
+function bossAtk_VoidStalker(b) {
+  const phase = (b.atkIdx-1) % 3;
   if (phase === 0) {
-    const n = b.enraged ? 14 : 9;
-    for (let i=0; i<n; i++) {
-      const a = (i/n)*Math.PI*2 + t*0.4;
-      enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a)*4.5,vy:Math.sin(a)*4.5,dmg:24,r:7,life:3,dead:false});
+    // Teleport to random arena spot, then fire outward ring
+    createExplosion(b.x, b.y, 44, b.clr);
+    b.x = WALL+120+Math.random()*(W-WALL*2-240);
+    b.y = WALL+120+Math.random()*(H-WALL*2-240);
+    createExplosion(b.x, b.y, 44, b.clr);
+    const n = b.enraged ? 16 : 10;
+    for (let i=0;i<n;i++) {
+      const a=(i/n)*Math.PI*2+t*0.3;
+      enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a)*252,vy:Math.sin(a)*252,dmg:22,r:7,life:3,dead:false,clr:b.clr});
     }
     if (b.enraged) {
-      for (let i=0; i<9; i++) {
-        const a=(i/9)*Math.PI*2+Math.PI/9+t*0.4;
-        enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a)*3.2,vy:Math.sin(a)*3.2,dmg:20,r:6,life:3.5,dead:false});
+      for (let i=0;i<8;i++) {
+        const a=(i/8)*Math.PI*2+Math.PI/8;
+        enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a)*168,vy:Math.sin(a)*168,dmg:18,r:6,life:3.5,dead:false,clr:b.clr});
       }
     }
-    createExplosion(b.x, b.y, 40, '#ff0022');
-
   } else if (phase === 1) {
-    const a = Math.atan2(player.y-b.y, player.x-b.x);
-    const shots = b.enraged ? 3 : 2;
-    for (let i=0; i<shots; i++) {
-      const da = (i-(shots-1)/2)*0.18;
-      enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a+da)*5.5,vy:Math.sin(a+da)*5.5,dmg:36,r:7,life:3.5,dead:false});
+    // Aimed spread shots
+    const a=Math.atan2(player.y-b.y,player.x-b.x);
+    const shots=b.enraged?4:2;
+    for (let i=0;i<shots;i++) {
+      const da=(i-(shots-1)/2)*0.2;
+      enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a+da)*330,vy:Math.sin(a+da)*330,dmg:34,r:7,life:3.5,dead:false,clr:b.clr});
     }
-
   } else {
-    const dx=player.x-b.x, dy=player.y-b.y, d=Math.hypot(dx,dy)||1;
-    b.charging=true; b.chargeDur=1.3;
+    // Gravity pull — bullets from surrounding ring converge inward
+    const n = b.enraged ? 22 : 14;
+    for (let i=0;i<n;i++) {
+      const a=(i/n)*Math.PI*2;
+      const ox=b.x+Math.cos(a)*240, oy=b.y+Math.sin(a)*240;
+      enemyBullets.push({x:ox,y:oy,vx:-Math.cos(a)*312,vy:-Math.sin(a)*312,dmg:26,r:7,life:1.4,dead:false,clr:b.clr});
+    }
+    showNotif('GRAVITY PULL!', b.clr);
+  }
+}
+
+// Zone 1 — ACID WORM: poison blob fan, homing shots, acid charge
+function bossAtk_AcidWorm(b) {
+  const phase = (b.atkIdx-1) % 3;
+  if (phase === 0) {
+    // Wide slow poison blob fan
+    const a=Math.atan2(player.y-b.y,player.x-b.x);
+    const n=b.enraged?9:6;
+    for (let i=0;i<n;i++) {
+      const da=(i-(n-1)/2)*0.28;
+      enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a+da)*144,vy:Math.sin(a+da)*144,dmg:18,r:11,life:5,dead:false,clr:b.clr,slow:1.5});
+    }
+    createExplosion(b.x,b.y,32,b.clr);
+  } else if (phase === 1) {
+    // Homing acid shots
+    const n=b.enraged?5:3;
+    const a=Math.atan2(player.y-b.y,player.x-b.x);
+    for (let i=0;i<n;i++) {
+      const da=(i-(n-1)/2)*0.18;
+      enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a+da)*228,vy:Math.sin(a+da)*228,dmg:28,r:8,life:4.5,dead:false,clr:b.clr,homing:true});
+    }
+    showNotif('ACID HOMING!', b.clr);
+  } else {
+    // Charge — acid pools dropped in boss update loop via trailTimer
+    const dx=player.x-b.x,dy=player.y-b.y,d=Math.hypot(dx,dy)||1;
+    b.charging=true; b.chargeDur=1.2; b.trailTimer=0;
     b.chargeDir={x:dx/d,y:dy/d};
-    showNotif('BOSS CHARGING!', '#ff8800');
+    showNotif('ACID CHARGE!', b.clr);
+  }
+}
+
+// Zone 2 — MAGMA TITAN: slam ring, meteor rain, charge
+function bossAtk_MagmaTitan(b) {
+  const phase = (b.atkIdx-1) % 3;
+  if (phase === 0) {
+    // Ground slam — wide outward ring of fireballs at varied speeds
+    const n=b.enraged?18:12;
+    for (let i=0;i<n;i++) {
+      const a=(i/n)*Math.PI*2;
+      const spd=(3.5+Math.random()*2.5)*60;
+      enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,dmg:32,r:9,life:3,dead:false,clr:b.clr});
+    }
+    if (b.enraged) {
+      // Second inner ring offset
+      for (let i=0;i<9;i++) {
+        const a=(i/9)*Math.PI*2+Math.PI/9;
+        enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a)*144,vy:Math.sin(a)*144,dmg:22,r:8,life:3.5,dead:false,clr:'#ffaa00'});
+      }
+    }
+    createExplosion(b.x,b.y,80,b.clr);
+    showNotif('GROUND SLAM!', b.clr);
+  } else if (phase === 1) {
+    // Meteor rain — staggered aimed shots with slight spread
+    const count=b.enraged?10:6;
+    const a=Math.atan2(player.y-b.y,player.x-b.x);
+    for (let i=0;i<count;i++) {
+      const da=(Math.random()-0.5)*0.45;
+      enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a+da)*348,vy:Math.sin(a+da)*348,dmg:38,r:8,life:3,dead:false,clr:'#ffaa00'});
+    }
+    showNotif('METEOR RAIN!', b.clr);
+  } else {
+    // Heavy charge
+    const dx=player.x-b.x,dy=player.y-b.y,d=Math.hypot(dx,dy)||1;
+    b.charging=true; b.chargeDur=1.5;
+    b.chargeDir={x:dx/d,y:dy/d};
+    showNotif('MAGMA CHARGE!', b.clr);
+  }
+}
+
+// Zone 3 — FROST COLOSSUS: ice shard ring, freeze shots, blizzard pulse
+function bossAtk_FrostColossus(b) {
+  const phase = (b.atkIdx-1) % 3;
+  if (phase === 0) {
+    // Ice shard ring — slow, large shards
+    const n=b.enraged?18:12;
+    for (let i=0;i<n;i++) {
+      const a=(i/n)*Math.PI*2+t*0.2;
+      enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a)*180,vy:Math.sin(a)*180,dmg:20,r:8,life:4,dead:false,clr:b.clr,slow:1.8});
+    }
+    if (b.enraged) {
+      for (let i=0;i<9;i++) {
+        const a=(i/9)*Math.PI*2+Math.PI/9;
+        enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a)*270,vy:Math.sin(a)*270,dmg:16,r:7,life:3,dead:false,clr:'#ccf0ff'});
+      }
+    }
+    createExplosion(b.x,b.y,50,b.clr);
+  } else if (phase === 1) {
+    // Freeze burst — aimed slow shots that freeze player
+    const a=Math.atan2(player.y-b.y,player.x-b.x);
+    const shots=b.enraged?5:3;
+    for (let i=0;i<shots;i++) {
+      const da=(i-(shots-1)/2)*0.22;
+      enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a+da)*240,vy:Math.sin(a+da)*240,dmg:24,r:8,life:4,dead:false,clr:b.clr,freeze:2.0});
+    }
+    showNotif('FREEZE BURST!', b.clr);
+  } else {
+    // Blizzard pulse — slow radial ring + charge
+    const n=b.enraged?24:16;
+    for (let i=0;i<n;i++) {
+      const a=(i/n)*Math.PI*2;
+      enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a)*132,vy:Math.sin(a)*132,dmg:18,r:9,life:5,dead:false,clr:'#ccf0ff',slow:1.0});
+    }
+    const dx=player.x-b.x,dy=player.y-b.y,d=Math.hypot(dx,dy)||1;
+    b.charging=true; b.chargeDur=1.1;
+    b.chargeDir={x:dx/d,y:dy/d};
+    showNotif('BLIZZARD!', b.clr);
+  }
+}
+
+// Zone 4 — PHANTOM KING: teleport+ring, 5-way spread, phase blink nova
+function bossAtk_PhantomKing(b) {
+  const phase = (b.atkIdx-1) % 3;
+  if (phase === 0) {
+    // Teleport + large ring
+    createExplosion(b.x,b.y,44,b.clr);
+    b.x=WALL+120+Math.random()*(W-WALL*2-240);
+    b.y=WALL+120+Math.random()*(H-WALL*2-240);
+    createExplosion(b.x,b.y,44,b.clr);
+    const n=b.enraged?20:14;
+    for (let i=0;i<n;i++) {
+      const a=(i/n)*Math.PI*2;
+      enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a)*288,vy:Math.sin(a)*288,dmg:26,r:7,life:3,dead:false,clr:b.clr});
+    }
+    // Always add aimed shots after teleport
+    const a=Math.atan2(player.y-b.y,player.x-b.x);
+    for (let i=0;i<3;i++) {
+      const da=(i-1)*0.18;
+      enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a+da)*360,vy:Math.sin(a+da)*360,dmg:30,r:7,life:3,dead:false,clr:b.clr});
+    }
+  } else if (phase === 1) {
+    // 5-way (or 7-way enraged) aimed spread
+    const a=Math.atan2(player.y-b.y,player.x-b.x);
+    const shots=b.enraged?7:5;
+    for (let i=0;i<shots;i++) {
+      const da=(i-(shots-1)/2)*0.2;
+      enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a+da)*348,vy:Math.sin(a+da)*348,dmg:28,r:7,life:3.5,dead:false,clr:b.clr});
+    }
+  } else {
+    // Phase blink: teleport twice then 24-bullet explosion
+    const blinks=b.enraged?3:2;
+    for (let bi=0;bi<blinks;bi++) {
+      const tx=WALL+120+Math.random()*(W-WALL*2-240);
+      const ty=WALL+120+Math.random()*(H-WALL*2-240);
+      createExplosion(b.x,b.y,30,b.clr); b.x=tx; b.y=ty;
+    }
+    const n=b.enraged?28:20;
+    for (let i=0;i<n;i++) {
+      const a=(i/n)*Math.PI*2+t;
+      enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a)*300,vy:Math.sin(a)*300,dmg:30,r:7,life:3,dead:false,clr:b.clr});
+    }
+    createExplosion(b.x,b.y,80,b.clr);
+    showNotif('PHASE NOVA!', b.clr);
+  }
+}
+
+// Zone 5 — WRAITH LORD: chaos burst, 5-way homing, darkness nova + teleport
+function bossAtk_WraithLord(b) {
+  const phase = (b.atkIdx-1) % 3;
+  if (phase === 0) {
+    // Chaos — random direction bullets (some homing when enraged)
+    const n=b.enraged?32:20;
+    for (let i=0;i<n;i++) {
+      const a=Math.random()*Math.PI*2;
+      const spd=(3+Math.random()*3.5)*60;
+      enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,
+        dmg:22,r:7,life:3.5,dead:false,clr:b.clr,homing:b.enraged&&Math.random()<0.4});
+    }
+    createExplosion(b.x,b.y,60,b.clr);
+    showNotif('CHAOS BURST!', b.clr);
+  } else if (phase === 1) {
+    // Aimed 5-way homing spread
+    const a=Math.atan2(player.y-b.y,player.x-b.x);
+    const shots=b.enraged?7:5;
+    for (let i=0;i<shots;i++) {
+      const da=(i-(shots-1)/2)*0.2;
+      enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a+da)*330,vy:Math.sin(a+da)*330,
+        dmg:32,r:7,life:4,dead:false,clr:b.clr,homing:true});
+    }
+    showNotif('WRAITH HOMING!', b.clr);
+  } else {
+    // Darkness nova — massive ring, then teleport, then second ring
+    const n=b.enraged?36:24;
+    for (let i=0;i<n;i++) {
+      const a=(i/n)*Math.PI*2+t;
+      enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a)*270,vy:Math.sin(a)*270,dmg:26,r:8,life:3.5,dead:false,clr:b.clr});
+    }
+    createExplosion(b.x,b.y,100,b.clr);
+    // Teleport away
+    b.x=WALL+120+Math.random()*(W-WALL*2-240);
+    b.y=WALL+120+Math.random()*(H-WALL*2-240);
+    if (b.enraged) {
+      for (let i=0;i<16;i++) {
+        const a=(i/16)*Math.PI*2+Math.PI/16+t;
+        enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(a)*210,vy:Math.sin(a)*210,dmg:20,r:7,life:3,dead:false,clr:'#ff44ff'});
+      }
+    }
+    createExplosion(b.x,b.y,60,b.clr);
+    showNotif('DARKNESS NOVA!', b.clr);
   }
 }
 
@@ -514,7 +764,7 @@ function shoot() {
     }
     shotCd=cd; return;
   }
-  const n    = player.buffs.spread >0 ? w.n+2     : w.n;
+  const n    = player.buffs.spread >0 ? w.n+3     : w.n;
   const aoe  = player.buffs.splash >0 ? Math.max(w.aoe,80) : w.aoe;
   const spr  = player.buffs.spread >0 ? w.spr+0.26 : w.spr;
   for (let i=0; i<n; i++) {
@@ -526,7 +776,8 @@ function shoot() {
       pierce:w.pierce, aoe, life:2.2, dead:false,
       double: w.double||false,
       bouncing: player.buffs.bouncing>0, bounces:0,
-      ricochet: player.buffs.ricochet>0, ricochetsLeft:4, ricocheted:new Set(),
+      ricochet: player.buffs.ricochet>0, ricochetsLeft:6, ricocheted:new Set(),
+      knockback: w.name==='Shotgun',
     });
   }
   shotCd = cd;
@@ -799,7 +1050,7 @@ function update(dt) {
     if (dx&&dy){dx*=0.707;dy*=0.707;}
     player.slowTimer=Math.max(0,player.slowTimer-dt);
     const speedMult = player.slowTimer>0 ? 0.3 : 1;
-    dx*=player.speed*speedMult; dy*=player.speed*speedMult;
+    dx*=player.speed*speedMult*dt; dy*=player.speed*speedMult*dt;
     if (dx||dy) player.angle=Math.atan2(dx,-dy);
     else if (state==='playing') player.angle=Math.atan2(mouseX-player.x,-(mouseY-player.y));
 
@@ -847,7 +1098,7 @@ function update(dt) {
 
   // ── Player bullets
   for (const b of bullets) {
-    b.x+=b.vx; b.y+=b.vy; b.life-=dt;
+    b.x+=b.vx*dt; b.y+=b.vy*dt; b.life-=dt;
     if (b.life<=0){b.dead=true;continue;}
     const hL=b.x-b.r<WALL+1, hR=b.x+b.r>W-WALL-1, hT=b.y-b.r<WALL+1, hB=b.y+b.r>H-WALL-1;
     if (hL||hR||hT||hB) {
@@ -890,6 +1141,11 @@ function update(dt) {
           continue;
         }
         e.hp-=b.dmg;
+        if (b.knockback) {
+          const ka=Math.atan2(b.vy,b.vx), kf=22;
+          e.x=Math.max(WALL+e.r, Math.min(W-WALL-e.r, e.x+Math.cos(ka)*kf));
+          e.y=Math.max(WALL+e.r, Math.min(H-WALL-e.r, e.y+Math.sin(ka)*kf));
+        }
         if (b.aoe>0){
           for (const o of enemies) if(Math.hypot(b.x-o.x,b.y-o.y)<b.aoe) o.hp-=b.dmg*0.5;
           if (boss&&Math.hypot(b.x-boss.x,b.y-boss.y)<b.aoe) boss.hp-=b.dmg*0.5;
@@ -958,18 +1214,30 @@ function update(dt) {
 
   // ── Boss update
   if (boss) {
-    if (!boss.enraged&&boss.hp<boss.maxHp*0.5){boss.enraged=true;boss.spd=2.8;showNotif('BOSS ENRAGED!','#ff6600');}
+    if (!boss.enraged&&boss.hp<boss.maxHp*0.5){
+      boss.enraged=true; boss.spd=boss.enrSpd||2.8;
+      showNotif(`${boss.name||'BOSS'} ENRAGED!`,'#ff6600');
+    }
     boss.atkCd=Math.max(0,boss.atkCd-dt);
-    if (boss.atkCd===0){boss.atkCd=boss.enraged?1.5:2.5;doBossAttack(boss);}
+    if (boss.atkCd===0){boss.atkCd=boss.enraged?boss.baseAtkCd*0.55:boss.baseAtkCd;doBossAttack(boss);}
 
-    const bspd=boss.charging?8.0:boss.spd;
+    const bspd=(boss.charging?510:boss.spd)*dt;
     const bdx=player.x-boss.x, bdy=player.y-boss.y, bdist=Math.hypot(bdx,bdy)||1;
     const bdir=boss.charging?boss.chargeDir:{x:bdx/bdist,y:bdy/bdist};
     let bx2=boss.x+bdir.x*bspd, by2=boss.y+bdir.y*bspd;
     for (const r of WALLS){let p=pushOut(bx2,boss.y,boss.r,r);bx2=p.x;}
     for (const r of WALLS){let p=pushOut(bx2,by2,boss.r,r);by2=p.y;}
     boss.x=bx2;boss.y=by2;boss.angle=Math.atan2(bdy,bdx);
-    if (boss.charging){boss.chargeDur-=dt;if(boss.chargeDur<=0)boss.charging=false;}
+    if (boss.charging){
+      boss.chargeDur-=dt;
+      // Acid Worm: drop poison pools during charge
+      if (boss.kind===1) {
+        boss.trailTimer-=dt;
+        if(boss.trailTimer<=0){boss.trailTimer=0.18;
+          enemyBullets.push({x:boss.x,y:boss.y,vx:0,vy:0,dmg:14,r:14,life:2.8,dead:false,clr:'#44ee44',slow:1.2});}
+      }
+      if(boss.chargeDur<=0)boss.charging=false;
+    }
 
     if (player.iframes<=0&&Math.hypot(player.x-boss.x,player.y-boss.y)<PR+boss.r){
       player.hp-=boss.dmg*dt*2.5*enemyDmgMult();player.iframes=0.55;
@@ -991,7 +1259,7 @@ function update(dt) {
   // ── Move enemies
   for (const e of enemies) {
     const edx=player.x-e.x, edy=player.y-e.y, ed=Math.hypot(edx,edy)||1;
-    let ex=e.x+(edx/ed)*e.spd, ey=e.y+(edy/ed)*e.spd;
+    let ex=e.x+(edx/ed)*e.spd*dt, ey=e.y+(edy/ed)*e.spd*dt;
     // Wraith phases through furniture — only wall collision
     const colSet = e.kind==='Wraith' ? WALLS : SOLID;
     for (const r of colSet){let p=pushOut(ex,e.y,e.r,r);ex=p.x;}
@@ -1010,12 +1278,12 @@ function update(dt) {
         const a = Math.atan2(player.y-e.y, player.x-e.x);
         if (e.kind==='Spitter') {
           // Lob slow acid glob
-          enemyBullets.push({x:e.x,y:e.y,vx:Math.cos(a)*3.2,vy:Math.sin(a)*3.2,
+          enemyBullets.push({x:e.x,y:e.y,vx:Math.cos(a)*192,vy:Math.sin(a)*192,
             dmg:20,r:8,life:4.5,dead:false,clr:'#44ff44'});
           e.atkCd = 3.0;
         } else if (e.kind==='Glacial') {
           // Fire ice shard that slows on hit
-          enemyBullets.push({x:e.x,y:e.y,vx:Math.cos(a)*5,vy:Math.sin(a)*5,
+          enemyBullets.push({x:e.x,y:e.y,vx:Math.cos(a)*300,vy:Math.sin(a)*300,
             dmg:10,r:7,life:4,dead:false,clr:'#88ddff',slow:2.5});
           e.atkCd = 3.5;
         } else if (e.kind==='Phantom') {
@@ -1038,10 +1306,13 @@ function update(dt) {
     if(e.hp<=0){
       gainXP(e.xp);kills++;
       if (e.kind==='Ember') {
-        // Death explosion damages player if nearby
-        createExplosion(e.x,e.y,100,'#ff6600');
-        if (Math.hypot(player.x-e.x,player.y-e.y)<100)
+        // Death explosion damages player and nearby enemies
+        createExplosion(e.x,e.y,180,'#ff6600');
+        if (Math.hypot(player.x-e.x,player.y-e.y)<180)
           player.hp=Math.max(0, player.hp-55*enemyDmgMult());
+        for (const other of enemies)
+          if (other !== e && Math.hypot(other.x-e.x,other.y-e.y)<180)
+            other.hp=Math.max(0, other.hp-120);
       }
       return false;
     }
@@ -1050,11 +1321,17 @@ function update(dt) {
 
   // ── Enemy bullets
   for (const b of enemyBullets) {
-    b.x+=b.vx;b.y+=b.vy;b.life-=dt;
+    if (b.homing) {
+      const hdx=player.x-b.x, hdy=player.y-b.y, hd=Math.hypot(hdx,hdy)||1;
+      const spd=Math.hypot(b.vx,b.vy);
+      b.vx+=(hdx/hd*spd-b.vx)*3.3*dt; b.vy+=(hdy/hd*spd-b.vy)*3.3*dt;
+    }
+    b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;
     if(b.life<=0||b.x<WALL||b.x>W-WALL||b.y<WALL||b.y>H-WALL){b.dead=true;continue;}
     if(player.iframes<=0&&Math.hypot(b.x-player.x,b.y-player.y)<PR+b.r){
       player.hp-=b.dmg*enemyDmgMult();player.iframes=0.4;b.dead=true;
-      if(b.slow) player.slowTimer=b.slow;
+      if(b.slow)   player.slowTimer=Math.max(player.slowTimer,b.slow);
+      if(b.freeze) player.slowTimer=Math.max(player.slowTimer,b.freeze);
     }
   }
   enemyBullets=enemyBullets.filter(b=>!b.dead);
@@ -1229,12 +1506,19 @@ function drawPlayerBullets() {
 function drawEnemyBullets() {
   if (!enemyBullets.length) return;
   ctx.save();
-  // Red outer ring
-  ctx.globalAlpha=0.45; ctx.fillStyle='#ff0022';
-  for(const b of enemyBullets){ctx.beginPath();ctx.arc(b.x,b.y,b.r+4,0,Math.PI*2);ctx.fill();}
-  // Red core
-  ctx.globalAlpha=1; ctx.fillStyle='#ff3355';
-  for(const b of enemyBullets){ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();}
+  // Group by color for batched drawing
+  const byClr = new Map();
+  for (const b of enemyBullets) {
+    const c = b.clr || '#ff3355';
+    if (!byClr.has(c)) byClr.set(c, []);
+    byClr.get(c).push(b);
+  }
+  for (const [clr, bs] of byClr) {
+    ctx.globalAlpha=0.40; ctx.fillStyle=clr;
+    for(const b of bs){ctx.beginPath();ctx.arc(b.x,b.y,b.r+4,0,Math.PI*2);ctx.fill();}
+    ctx.globalAlpha=1; ctx.fillStyle=clr;
+    for(const b of bs){ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();}
+  }
   ctx.restore();
 }
 function drawEnemies() {
@@ -1304,21 +1588,27 @@ function drawEnemies() {
 function drawBoss(b) {
   if (!b) return;
   const enr=b.enraged, pulse=Math.sin(t*(enr?6:3))*0.5+0.5;
+  const clr  = b.clr  || '#cc0033';
+  const ring  = enr ? '#ff6600' : clr;
   ctx.save();
-  ctx.globalAlpha=0.10+pulse*0.06;ctx.shadowColor='#ff0000';ctx.shadowBlur=20;ctx.fillStyle='#ff0022';
+  // Outer aura glow
+  ctx.globalAlpha=0.10+pulse*0.06; ctx.shadowColor=clr; ctx.shadowBlur=20; ctx.fillStyle=clr;
   ctx.beginPath();ctx.arc(b.x,b.y,b.r+30+pulse*12,0,Math.PI*2);ctx.fill();
-  ctx.globalAlpha=0.35;ctx.shadowBlur=12;
+  ctx.globalAlpha=0.30; ctx.shadowBlur=12;
   ctx.beginPath();ctx.arc(b.x,b.y,b.r+12,0,Math.PI*2);ctx.fill();
+  // Rotating orbit rings
   ctx.save();ctx.translate(b.x,b.y);
-  ctx.strokeStyle=enr?'#ff6600':'#ff0033';ctx.lineWidth=2.5;ctx.shadowColor=enr?'#ff6600':'#ff0033';ctx.shadowBlur=12;ctx.globalAlpha=0.85;
+  ctx.strokeStyle=ring;ctx.lineWidth=2.5;ctx.shadowColor=ring;ctx.shadowBlur=12;ctx.globalAlpha=0.85;
   ctx.rotate(t*(enr?4:1.8));ctx.setLineDash([12,9]);ctx.beginPath();ctx.arc(0,0,b.r+16,0,Math.PI*2);ctx.stroke();
   ctx.rotate(-(t*(enr?8:3.5)));ctx.globalAlpha=0.5;ctx.lineWidth=1.5;ctx.setLineDash([7,11]);
   ctx.beginPath();ctx.arc(0,0,b.r+26,0,Math.PI*2);ctx.stroke();
   ctx.setLineDash([]);ctx.restore();
-  ctx.globalAlpha=1;ctx.shadowColor=enr?'#ff6600':'#ff0033';ctx.shadowBlur=22;
-  ctx.fillStyle=b.charging?'#ff8800':(enr?'#dd2200':'#aa0022');
+  // Boss sphere
+  ctx.globalAlpha=1;ctx.shadowColor=ring;ctx.shadowBlur=22;
+  ctx.fillStyle=b.charging?'#ff8800':(enr?'#ff6600':clr);
   ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();
-  ctx.shadowBlur=0; drawSphereShading(b.x, b.y, b.r);
+  ctx.shadowBlur=0; drawSphereShading(b.x,b.y,b.r);
+  // Eyes
   const eyeR=b.r*0.35,ea=b.angle;
   for(const side of[-0.42,0.42]){
     const ex=b.x+Math.cos(ea+side)*eyeR,ey=b.y+Math.sin(ea+side)*eyeR;
@@ -1328,13 +1618,16 @@ function drawBoss(b) {
     ctx.beginPath();ctx.arc(ex+Math.cos(ea)*2,ey+Math.sin(ea)*2,2.5,0,Math.PI*2);ctx.fill();
   }
   ctx.restore();
-  const bw=b.r*3.5,bh=10,bx2=b.x-bw/2,by2=b.y-b.r-28;
-  ctx.fillStyle='#330000';ctx.fillRect(bx2,by2,bw,bh);
-  ctx.fillStyle=b.hp/b.maxHp>0.5?'#ff2244':'#ff6600';ctx.fillRect(bx2,by2,bw*(b.hp/b.maxHp),bh);
-  ctx.strokeStyle='#ff4455';ctx.lineWidth=1.5;ctx.strokeRect(bx2,by2,bw,bh);
-  ctx.fillStyle=enr?'#ff8800':'#ff4455';ctx.font='bold 22px ui-sans-serif,sans-serif';ctx.textAlign='center';
-  ctx.shadowColor=enr?'#ff8800':'#ff4455';ctx.shadowBlur=10;
-  ctx.fillText(enr?'BOSS ★ ENRAGED':'BOSS',b.x,by2-6);ctx.shadowBlur=0;
+  // HP bar
+  const bw=Math.max(b.r*4,140),bh=10,bx2=b.x-bw/2,by2=b.y-b.r-30;
+  ctx.fillStyle='#1a0022';ctx.fillRect(bx2,by2,bw,bh);
+  ctx.fillStyle=b.hp/b.maxHp>0.5?clr:'#ff6600';ctx.fillRect(bx2,by2,bw*(b.hp/b.maxHp),bh);
+  ctx.strokeStyle=clr;ctx.lineWidth=1.5;ctx.strokeRect(bx2,by2,bw,bh);
+  // Boss name label
+  const label=(b.name||'BOSS')+(enr?' ★ ENRAGED':'');
+  ctx.fillStyle=enr?'#ff8800':clr;ctx.font='bold 20px ui-sans-serif,sans-serif';ctx.textAlign='center';
+  ctx.shadowColor=enr?'#ff8800':clr;ctx.shadowBlur=12;
+  ctx.fillText(label,b.x,by2-6);ctx.shadowBlur=0;
 }
 function drawBuffItems() {
   for(const item of buffItems){

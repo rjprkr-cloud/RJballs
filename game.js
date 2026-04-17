@@ -1235,7 +1235,7 @@ function update(dt) {
     return;
   }
 
-  if (state==='dead' || state==='paused') return;
+  if (state==='dead' || state==='paused' || state==='settings') return;
 
   // ── PLAYING STATE ──────────────────────────────────────────────
 

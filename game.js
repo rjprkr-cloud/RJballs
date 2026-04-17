@@ -75,8 +75,8 @@ function _sfx() {
   if (_sfxCtx.state === 'suspended') _sfxCtx.resume();
   return _sfxCtx;
 }
-// SFX volume tracks music volume so they stay balanced
-function _sfxVol() { return Math.max(0.05, musicVolume * 1.1); }
+// SFX volume is independently controlled via settings
+function _sfxVol() { return Math.max(0.01, sfxVolume); }
 
 // Shared helper: create a noise buffer source
 function _noise(ac, dur) {
@@ -387,8 +387,9 @@ const SOLID = [...WALLS, ...FURNITURE];
 
 // ── Walk-on menu pads ─────────────────────────────────────────────
 const WALK_PADS = [
-  { id:'start',  x:W/2-220, y:H*0.64, w:240, h:100, label:'START',  sub:'stand to begin', clr:'#44ff88', timer:0 },
-  { id:'scores', x:W/2+220, y:H*0.64, w:240, h:100, label:'SCORES', sub:'stand to view',  clr:'#44ddff', timer:0 },
+  { id:'start',    x:W/2-380, y:H*0.64, w:240, h:100, label:'START',    sub:'stand to begin',      clr:'#44ff88', timer:0 },
+  { id:'settings', x:W/2,     y:H*0.64, w:240, h:100, label:'SETTINGS', sub:'stand to configure',  clr:'#c64bff', timer:0 },
+  { id:'scores',   x:W/2+380, y:H*0.64, w:240, h:100, label:'SCORES',   sub:'stand to view',       clr:'#44ddff', timer:0 },
 ];
 const PAD_HOLD = 1.0; // seconds to hold before activating
 
@@ -445,12 +446,46 @@ function pickType(wave) {
 }
 
 // ── Game state ────────────────────────────────────────────────────
-let state = 'menu'; // 'menu' | 'playing' | 'paused' | 'dead'
+let state = 'menu'; // 'menu'|'playing'|'paused'|'dead'|'settings'
 let bullets, enemyBullets, enemies, boss, beams;
 let explosions, buffItems;
 let wave, waveTimer, shotCd, kills, buffSpawnTimer;
 let notif = '', notifT = 0, notifClr = '#ffdd44';
 let t = 0;
+
+// ── Settings state ────────────────────────────────────────────────
+let settingsFrom = 'menu';   // where to return when closing settings
+let settingsTab  = 'audio';  // 'audio' | 'display' | 'keybinds'
+let sfxVolume    = 1.0;      // independent SFX volume (0–1)
+let screenScale  = 1.0;      // CSS canvas scale
+let _rebinding   = null;     // BINDS key currently being captured
+
+// Keybinds — action → e.key.toLowerCase()
+let BINDS = { up:'w', down:'s', left:'a', right:'d', shoot:' ' };
+
+const KEYBIND_ROWS = [
+  { action:'up',    label:'MOVE UP'    },
+  { action:'down',  label:'MOVE DOWN'  },
+  { action:'left',  label:'MOVE LEFT'  },
+  { action:'right', label:'MOVE RIGHT' },
+  { action:'shoot', label:'SHOOT'      },
+];
+
+function keyDisplayName(k) {
+  if (!k) return '?';
+  if (k === ' ')         return 'SPACE';
+  if (k === 'arrowup')   return '↑';
+  if (k === 'arrowdown') return '↓';
+  if (k === 'arrowleft') return '←';
+  if (k === 'arrowright')return '→';
+  return k.toUpperCase();
+}
+
+function applyScale(s) {
+  screenScale = s;
+  canvas.style.width  = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
 
 
 // Player is always live so lobby movement works
@@ -953,11 +988,18 @@ function createExplosion(x, y, maxR, clr='#ff4400') {
 // ── Input ─────────────────────────────────────────────────────────
 const keys = {};
 addEventListener('keydown', e => {
+  // Keybind capture mode — eat the key and assign it
+  if (_rebinding !== null) {
+    if (e.key !== 'Escape') BINDS[_rebinding] = e.key.toLowerCase();
+    _rebinding = null;
+    e.preventDefault(); return;
+  }
   keys[e.key.toLowerCase()] = true;
-  if (e.key === ' ') e.preventDefault(); // stop spacebar scrolling page
+  if (e.key === ' ') e.preventDefault();
   if (e.key === 'Escape') {
-    if (state === 'playing') { state = 'paused'; musicPause(); }
-    else if (state === 'paused') { state = 'playing'; musicPlay(); }
+    if (state === 'playing')  { state='paused'; musicPause(); }
+    else if (state === 'paused')   { state='playing'; musicPlay(); }
+    else if (state === 'settings') { state=settingsFrom; if(settingsFrom==='playing') musicPlay(); }
     updateCursor();
   }
 });
@@ -966,27 +1008,36 @@ addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 let mouseX=W/2, mouseY=H/2, mouseDown=false;
 let _volDrag=false;
 // Volume slider constants (used in draw + input)
-const VOL_CX=W/2-200, VOL_Y=H/2+178, VOL_W=190, VOL_H=20;
+// Settings slider geometry (used by drawSettings + mouse handlers)
+const SET_SL_CX=W/2, SET_SL_W=440, SET_SL_H=20;
+const SET_MUS_Y=H/2-40;   // music vol slider y
+const SET_SFX_Y=H/2+60;   // sfx vol slider y
 
-function _applyVolSlider(mx) {
-  musicVolume = Math.max(0, Math.min(1, (mx-(VOL_CX-VOL_W/2))/VOL_W));
+function _applyMusicSlider(mx) {
+  musicVolume = Math.max(0, Math.min(1, (mx-(SET_SL_CX-SET_SL_W/2))/SET_SL_W));
   music.volume = musicVolume;
+}
+function _applySfxSlider(mx) {
+  sfxVolume = Math.max(0, Math.min(1, (mx-(SET_SL_CX-SET_SL_W/2))/SET_SL_W));
 }
 
 canvas.addEventListener('mousemove', e => {
   const r = canvas.getBoundingClientRect();
   mouseX = (e.clientX-r.left)*(W/r.width);
   mouseY = (e.clientY-r.top) *(H/r.height);
-  if (_volDrag) _applyVolSlider(mouseX);
+  if (_volDrag==='music') _applyMusicSlider(mouseX);
+  else if (_volDrag==='sfx') _applySfxSlider(mouseX);
 });
 canvas.addEventListener('mousedown', e => {
   if(e.button!==0) return;
   mouseDown=true;
-  // Check volume slider first (pause screen only)
-  if (state==='paused' &&
-      mouseX>=VOL_CX-VOL_W/2-8 && mouseX<=VOL_CX+VOL_W/2+8 &&
-      mouseY>=VOL_Y-VOL_H && mouseY<=VOL_Y+VOL_H) {
-    _volDrag=true; _applyVolSlider(mouseX); return;
+  // Settings audio sliders
+  if (state==='settings' && settingsTab==='audio') {
+    const lx=SET_SL_CX-SET_SL_W/2-10, rx=SET_SL_CX+SET_SL_W/2+10;
+    if (mouseX>=lx&&mouseX<=rx&&mouseY>=SET_MUS_Y-SET_SL_H&&mouseY<=SET_MUS_Y+SET_SL_H)
+      { _volDrag='music'; _applyMusicSlider(mouseX); return; }
+    if (mouseX>=lx&&mouseX<=rx&&mouseY>=SET_SFX_Y-SET_SL_H&&mouseY<=SET_SFX_Y+SET_SL_H)
+      { _volDrag='sfx'; _applySfxSlider(mouseX); return; }
   }
   handleClick(mouseX,mouseY);
 });
@@ -996,15 +1047,37 @@ const BTN_W=190, BTN_H=48;
 function hitBtn(mx,my,bx,by) {
   return mx>=bx-BTN_W/2 && mx<=bx+BTN_W/2 && my>=by-BTN_H/2 && my<=by+BTN_H/2;
 }
-// Click only used for dead screen now
 function handleClick(mx,my) {
   if (state==='paused') {
-    if (hitBtn(mx,my,W/2-200,H/2+14))  { state='playing'; musicPlay();  updateCursor(); }
-    if (hitBtn(mx,my,W/2-200,H/2+82))  { movePortals(true); state='menu'; musicPause(); updateCursor(); }
+    if (hitBtn(mx,my,W/2-200,H/2+14))  { state='playing'; musicPlay(); updateCursor(); }
+    if (hitBtn(mx,my,W/2-200,H/2+82))  { settingsFrom='paused'; settingsTab='audio'; state='settings'; }
+    if (hitBtn(mx,my,W/2-200,H/2+150)) { movePortals(true); state='menu'; musicPause(); updateCursor(); }
   }
   if (state==='dead') {
-    if (hitBtn(mx,my,W/2-200,H/2+58))  { initGame(); state='playing'; musicPlay();  updateCursor(); }
+    if (hitBtn(mx,my,W/2-200,H/2+58))  { initGame(); state='playing'; musicPlay(); updateCursor(); }
     if (hitBtn(mx,my,W/2-200,H/2+124)) { movePortals(true); state='menu'; musicPause(); updateCursor(); }
+  }
+  if (state==='settings') {
+    // Tab buttons
+    const ty=H/2-155;
+    if (mx>=W/2-360&&mx<=W/2-120&&my>=ty-24&&my<=ty+24) settingsTab='audio';
+    if (mx>=W/2-110&&mx<=W/2+110&&my>=ty-24&&my<=ty+24) settingsTab='display';
+    if (mx>=W/2+120&&mx<=W/2+360&&my>=ty-24&&my<=ty+24) settingsTab='keybinds';
+    // BACK button
+    if (hitBtn(mx,my,W/2,H/2+290)) { state=settingsFrom; if(settingsFrom==='playing') musicPlay(); updateCursor(); }
+    // Display: scale buttons
+    if (settingsTab==='display') {
+      if (hitBtn(mx,my,W/2-200,H/2+30)) applyScale(0.5);
+      if (hitBtn(mx,my,W/2,     H/2+30)) applyScale(0.75);
+      if (hitBtn(mx,my,W/2+200, H/2+30)) applyScale(1.0);
+    }
+    // Keybinds: row buttons
+    if (settingsTab==='keybinds') {
+      KEYBIND_ROWS.forEach((row,i) => {
+        const ry = H/2-100+i*56;
+        if (mx>=W/2+80&&mx<=W/2+280&&my>=ry-22&&my<=ry+22) _rebinding=row.action;
+      });
+    }
   }
 }
 
@@ -1119,10 +1192,10 @@ function update(dt) {
   // ── Player movement (all states)
   {
     let dx=0, dy=0;
-    if (keys['w']||keys['arrowup'])    dy-=1;
-    if (keys['s']||keys['arrowdown'])  dy+=1;
-    if (keys['a']||keys['arrowleft'])  dx-=1;
-    if (keys['d']||keys['arrowright']) dx+=1;
+    if (keys[BINDS.up]   ||keys['arrowup'])    dy-=1;
+    if (keys[BINDS.down] ||keys['arrowdown'])  dy+=1;
+    if (keys[BINDS.left] ||keys['arrowleft'])  dx-=1;
+    if (keys[BINDS.right]||keys['arrowright']) dx+=1;
     if (dx&&dy){dx*=0.707;dy*=0.707;}
     player.slowTimer=Math.max(0,player.slowTimer-dt);
     const speedMult = player.slowTimer>0 ? 0.3 : 1;
@@ -1146,8 +1219,9 @@ function update(dt) {
         pad.timer = Math.min(PAD_HOLD, pad.timer+dt);
         if (pad.timer >= PAD_HOLD) {
           pad.timer=0;
-          if (pad.id==='start')  { initGame(); state='playing'; musicPlay(); updateCursor(); return; }
-          if (pad.id==='scores') { showScores=!showScores; pad.timer=0; return; }
+          if (pad.id==='start')    { initGame(); state='playing'; musicPlay(); updateCursor(); return; }
+          if (pad.id==='scores')   { showScores=!showScores; pad.timer=0; return; }
+          if (pad.id==='settings') { settingsFrom='menu'; settingsTab='audio'; state='settings'; return; }
           if (pad.id==='end')    {
             window.location.href = nextTarget?.url ?? 'https://callumhyoung.github.io/gamejam/';
           }
@@ -1170,7 +1244,7 @@ function update(dt) {
 
   // Shoot (click OR spacebar)
   shotCd=Math.max(0,shotCd-dt);
-  if ((mouseDown||keys[' '])&&shotCd===0) shoot();
+  if ((mouseDown||keys[BINDS.shoot])&&shotCd===0) shoot();
 
   // ── Player bullets
   for (const b of bullets) {
@@ -1907,6 +1981,111 @@ function drawButton(label,cx,cy,glowColor) {
   ctx.restore();ctx.textBaseline='alphabetic';
 }
 
+function drawSettings() {
+  // ── Background ────────────────────────────────────────────────
+  ctx.fillStyle='rgba(8,3,18,0.94)'; ctx.fillRect(0,0,W,H);
+
+  // ── Title ─────────────────────────────────────────────────────
+  ctx.save();
+  ctx.shadowColor='#c64bff'; ctx.shadowBlur=28;
+  ctx.fillStyle='#f4f4ff'; ctx.font='bold 90px ui-sans-serif,sans-serif';
+  ctx.textAlign='center'; ctx.fillText('SETTINGS', W/2, H/2-230);
+  ctx.restore();
+
+  // ── Tabs ──────────────────────────────────────────────────────
+  const tabs = [{id:'audio',label:'AUDIO'},{id:'display',label:'DISPLAY'},{id:'keybinds',label:'KEYBINDS'}];
+  const tabCXs = [W/2-240, W/2, W/2+240];
+  const ty = H/2-155;
+  tabs.forEach(({id,label},i) => {
+    const active = settingsTab===id;
+    const clr = active ? '#c64bff' : 'rgba(255,255,255,0.35)';
+    ctx.save();
+    ctx.shadowColor=clr; ctx.shadowBlur=active?16:0;
+    ctx.strokeStyle=clr; ctx.lineWidth=2;
+    ctx.fillStyle=active?'rgba(198,75,255,0.12)':'rgba(255,255,255,0.04)';
+    ctx.beginPath(); ctx.rect(tabCXs[i]-110,ty-24,220,48); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=clr; ctx.font=`bold 26px ui-sans-serif,sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(label, tabCXs[i], ty);
+    ctx.restore(); ctx.textBaseline='alphabetic';
+  });
+
+  // ── Divider ───────────────────────────────────────────────────
+  ctx.strokeStyle='rgba(255,255,255,0.12)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(W/2-450,H/2-110); ctx.lineTo(W/2+450,H/2-110); ctx.stroke();
+
+  // ── Tab content ───────────────────────────────────────────────
+  if (settingsTab === 'audio') {
+    // Helper to draw one slider row
+    function drawSlider(label, value, sliderY) {
+      const lx = SET_SL_CX-SET_SL_W/2;
+      ctx.fillStyle='rgba(255,255,255,0.7)'; ctx.font='bold 26px ui-sans-serif,sans-serif';
+      ctx.textAlign='left'; ctx.fillText(label, lx, sliderY-18);
+      ctx.textAlign='right'; ctx.fillText(`${Math.round(value*100)}%`, SET_SL_CX+SET_SL_W/2, sliderY-18);
+      // Track
+      ctx.fillStyle='rgba(255,255,255,0.14)'; ctx.fillRect(lx, sliderY-5, SET_SL_W, 10);
+      // Fill
+      ctx.save(); ctx.shadowColor='#c64bff'; ctx.shadowBlur=8;
+      ctx.fillStyle='#c64bff'; ctx.fillRect(lx, sliderY-5, SET_SL_W*value, 10);
+      // Knob
+      const kx=lx+SET_SL_W*value;
+      ctx.fillStyle='#ffffff'; ctx.beginPath(); ctx.arc(kx, sliderY, 11, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+    drawSlider('MUSIC VOLUME', musicVolume, SET_MUS_Y);
+    drawSlider('SFX VOLUME',   sfxVolume,   SET_SFX_Y);
+  }
+
+  if (settingsTab === 'display') {
+    ctx.fillStyle='rgba(255,255,255,0.7)'; ctx.font='bold 26px ui-sans-serif,sans-serif';
+    ctx.textAlign='center'; ctx.fillText('SCREEN SCALE', W/2, H/2-60);
+    const scaleOpts = [['50%',0.5],['75%',0.75],['100%',1.0]];
+    const scaleCXs  = [W/2-200, W/2, W/2+200];
+    scaleOpts.forEach(([label,val],i) => {
+      const active = Math.abs(screenScale-val)<0.01;
+      const clr = active ? '#44ff88' : 'rgba(255,255,255,0.4)';
+      ctx.save();
+      ctx.shadowColor=clr; ctx.shadowBlur=active?16:0;
+      ctx.strokeStyle=clr; ctx.lineWidth=2;
+      ctx.fillStyle=active?'rgba(68,255,136,0.12)':'rgba(255,255,255,0.05)';
+      ctx.beginPath(); ctx.rect(scaleCXs[i]-BTN_W/2,H/2+30-BTN_H/2,BTN_W,BTN_H); ctx.fill(); ctx.stroke();
+      ctx.fillStyle=clr; ctx.font='bold 28px ui-sans-serif,sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label, scaleCXs[i], H/2+30);
+      ctx.restore(); ctx.textBaseline='alphabetic';
+    });
+    // Resolution note
+    ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.font='20px ui-sans-serif,sans-serif';
+    ctx.textAlign='center';
+    ctx.fillText(`Rendered at 1920×1080 — displayed at ${Math.round(W*screenScale)}×${Math.round(H*screenScale)}`, W/2, H/2+110);
+  }
+
+  if (settingsTab === 'keybinds') {
+    KEYBIND_ROWS.forEach((row,i) => {
+      const ry = H/2-100+i*56;
+      const isCapturing = _rebinding===row.action;
+      // Row label
+      ctx.fillStyle='rgba(255,255,255,0.75)'; ctx.font='bold 26px ui-sans-serif,sans-serif';
+      ctx.textAlign='left'; ctx.fillText(row.label, W/2-260, ry+9);
+      // Key button
+      const btnClr = isCapturing ? '#ffdd44' : '#c64bff';
+      ctx.save();
+      ctx.shadowColor=btnClr; ctx.shadowBlur=isCapturing?20:8;
+      ctx.strokeStyle=btnClr; ctx.lineWidth=2;
+      ctx.fillStyle=isCapturing?'rgba(255,221,68,0.15)':'rgba(198,75,255,0.1)';
+      ctx.beginPath(); ctx.rect(W/2+80,ry-22,200,44); ctx.fill(); ctx.stroke();
+      ctx.fillStyle=btnClr; ctx.font='bold 24px ui-sans-serif,sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(isCapturing ? 'PRESS KEY…' : keyDisplayName(BINDS[row.action]), W/2+180, ry);
+      ctx.restore(); ctx.textBaseline='alphabetic';
+    });
+    ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.font='20px ui-sans-serif,sans-serif';
+    ctx.textAlign='center'; ctx.fillText('Click a key button, then press any key to rebind  ·  ESC cancels', W/2, H/2+200);
+  }
+
+  // ── BACK button ───────────────────────────────────────────────
+  drawButton('BACK', W/2, H/2+290, '#aaaaaa');
+}
+
 function drawMenuOverlay() {
   // Translucent header overlay — arena/world is visible behind it
   ctx.save();
@@ -2057,24 +2236,12 @@ function drawPauseScreen() {
   ctx.textAlign='center';
   ctx.fillText(`Wave ${wave}  ·  Level ${player.level}  ·  ${kills} kills`, W/2, H/2-52);
 
-  // RESUME  button – centre y = H/2+14   (≈66px below stats baseline)
+  // RESUME   button
   drawButton('RESUME',   W/2-200, H/2+14,  '#44ff88');
-  // END GAME button – centre y = H/2+82   (68px below RESUME centre)
-  drawButton('END GAME', W/2-200, H/2+82,  '#ff4455');
-
-  // Volume slider – label at y = VOL_Y-16, slider at y = VOL_Y
-  // VOL_Y = H/2+178 → label at H/2+162, slider at H/2+178
-  // Gap from END GAME bottom (H/2+82+24=H/2+106) to label (H/2+162) = 56px  ✓
-  const vx=VOL_CX-VOL_W/2, vw=VOL_W, vy=VOL_Y;
-  ctx.fillStyle='rgba(255,255,255,0.6)'; ctx.font='22px ui-sans-serif,sans-serif';
-  ctx.textAlign='left';  ctx.fillText('VOLUME', vx, vy-16);
-  ctx.textAlign='right'; ctx.fillText(`${Math.round(musicVolume*100)}%`, vx+vw, vy-16);
-  ctx.fillStyle='rgba(255,255,255,0.18)'; ctx.fillRect(vx,vy-4,vw,8);
-  ctx.fillStyle='#c64bff'; ctx.fillRect(vx,vy-4,vw*musicVolume,8);
-  const hx=vx+vw*musicVolume;
-  ctx.save(); ctx.shadowColor='#c64bff'; ctx.shadowBlur=10;
-  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(hx,vy,9,0,Math.PI*2); ctx.fill();
-  ctx.restore();
+  // SETTINGS button
+  drawButton('SETTINGS', W/2-200, H/2+82,  '#c64bff');
+  // END GAME button
+  drawButton('END GAME', W/2-200, H/2+150, '#ff4455');
 
   // Leaderboard – bottom-right corner, clear of all left-column text
   // panelH (10 rows) = 460px  →  cy = H - WALL - 240 keeps bottom edge ≤ H-WALL
@@ -2125,6 +2292,8 @@ function render() {
     drawPauseScreen();
   } else if (state==='dead') {
     drawDeadScreen();
+  } else if (state==='settings') {
+    drawSettings();
   }
 }
 

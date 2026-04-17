@@ -204,6 +204,43 @@ function playWeaponSound(name) {
   } catch(_) {} // silently ignore if audio context unavailable
 }
 
+// Faint high tick when a bullet connects with an enemy
+function playHitSound() {
+  try {
+    const ac = _sfx(), now = ac.currentTime, v = _sfxVol() * 0.18;
+    const osc = ac.createOscillator(), g = ac.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1800, now);
+    osc.frequency.exponentialRampToValueAtTime(900, now + 0.03);
+    g.gain.setValueAtTime(v, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.03);
+    osc.connect(g); g.connect(ac.destination);
+    osc.start(now); osc.stop(now + 0.03);
+  } catch(_) {}
+}
+
+// Satisfying crunch when an enemy dies
+function playKillSound() {
+  try {
+    const ac = _sfx(), now = ac.currentTime, v = _sfxVol() * 0.55;
+    // Punchy low thud
+    const osc = ac.createOscillator(), g = ac.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(320, now);
+    osc.frequency.exponentialRampToValueAtTime(60, now + 0.08);
+    g.gain.setValueAtTime(v, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+    osc.connect(g); g.connect(ac.destination);
+    osc.start(now); osc.stop(now + 0.08);
+    // High crack layer
+    const ns = _noise(ac, 0.05), ng = ac.createGain();
+    ng.gain.setValueAtTime(v * 0.5, now);
+    ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+    ns.connect(ng); ng.connect(ac.destination);
+    ns.start(now); ns.stop(now + 0.05);
+  } catch(_) {}
+}
+
 // ── Name entry ────────────────────────────────────────────────────
 // Show the name screen, resolve with the chosen name, then hide it.
 const _chosenName = await (function askName() {
@@ -1180,6 +1217,7 @@ function update(dt) {
           continue;
         }
         e.hp-=b.dmg;
+        playHitSound();
         if (b.knockback) {
           const ka=Math.atan2(b.vy,b.vx), kf=22;
           e.x=Math.max(WALL+e.r, Math.min(W-WALL-e.r, e.x+Math.cos(ka)*kf));
@@ -1343,7 +1381,7 @@ function update(dt) {
   player.iframes=Math.max(0,player.iframes-dt);
   enemies=enemies.filter(e=>{
     if(e.hp<=0){
-      gainXP(e.xp);kills++;
+      gainXP(e.xp);kills++;playKillSound();
       if (e.kind==='Ember') {
         // Death explosion damages player and nearby enemies
         createExplosion(e.x,e.y,180,'#ff6600');

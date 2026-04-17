@@ -37,7 +37,7 @@ function _sfx() {
   return _sfxCtx;
 }
 // SFX volume tracks music volume so they stay balanced
-function _sfxVol() { return Math.max(0.05, musicVolume * 0.55); }
+function _sfxVol() { return Math.max(0.05, musicVolume * 1.1); }
 
 // Shared helper: create a noise buffer source
 function _noise(ac, dur) {

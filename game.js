@@ -29,6 +29,125 @@ function musicPlay() {
 }
 function musicPause() { if (!music.paused) music.pause(); }
 
+// ── 16-bit weapon sound effects (Web Audio synthesis) ─────────────
+let _sfxCtx = null;
+function _sfx() {
+  if (!_sfxCtx) _sfxCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (_sfxCtx.state === 'suspended') _sfxCtx.resume();
+  return _sfxCtx;
+}
+// SFX volume tracks music volume so they stay balanced
+function _sfxVol() { return Math.max(0.05, musicVolume * 0.55); }
+
+// Shared helper: create a noise buffer source
+function _noise(ac, dur) {
+  const n = Math.ceil(ac.sampleRate * dur);
+  const buf = ac.createBuffer(1, n, ac.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  const src = ac.createBufferSource();
+  src.buffer = buf;
+  return src;
+}
+
+function playWeaponSound(name) {
+  try {
+    const ac = _sfx(), now = ac.currentTime, v = _sfxVol();
+
+    if (name === 'Pistol') {
+      // Crisp square-wave pop: quick pitch drop
+      const osc = ac.createOscillator(), g = ac.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(560, now);
+      osc.frequency.exponentialRampToValueAtTime(160, now + 0.09);
+      g.gain.setValueAtTime(v * 0.45, now);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+      osc.connect(g); g.connect(ac.destination);
+      osc.start(now); osc.stop(now + 0.09);
+
+    } else if (name === 'Dual Pistols') {
+      // Two staggered pops, second slightly higher pitch
+      for (let i = 0; i < 2; i++) {
+        const t = now + i * 0.055;
+        const osc = ac.createOscillator(), g = ac.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(620 - i * 80, t);
+        osc.frequency.exponentialRampToValueAtTime(180, t + 0.08);
+        g.gain.setValueAtTime(v * 0.38, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+        osc.connect(g); g.connect(ac.destination);
+        osc.start(t); osc.stop(t + 0.08);
+      }
+
+    } else if (name === 'Shotgun') {
+      // Wide bandpass noise burst + low square thump
+      const ns = _noise(ac, 0.18), filt = ac.createBiquadFilter(), ng = ac.createGain();
+      filt.type = 'bandpass'; filt.frequency.value = 320; filt.Q.value = 0.4;
+      ng.gain.setValueAtTime(v * 0.65, now);
+      ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+      ns.connect(filt); filt.connect(ng); ng.connect(ac.destination);
+      ns.start(now); ns.stop(now + 0.18);
+      // Low punch
+      const osc = ac.createOscillator(), og = ac.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(130, now);
+      osc.frequency.exponentialRampToValueAtTime(38, now + 0.14);
+      og.gain.setValueAtTime(v * 0.7, now);
+      og.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+      osc.connect(og); og.connect(ac.destination);
+      osc.start(now); osc.stop(now + 0.14);
+
+    } else if (name === 'SMG') {
+      // Very short rapid square tick
+      const osc = ac.createOscillator(), g = ac.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(420, now);
+      osc.frequency.exponentialRampToValueAtTime(130, now + 0.042);
+      g.gain.setValueAtTime(v * 0.32, now);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.042);
+      osc.connect(g); g.connect(ac.destination);
+      osc.start(now); osc.stop(now + 0.042);
+
+    } else if (name === 'Rocket') {
+      // Sawtooth whoosh down + low-pass noise rumble
+      const osc = ac.createOscillator(), og = ac.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(45, now + 0.22);
+      og.gain.setValueAtTime(v * 0.55, now);
+      og.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+      osc.connect(og); og.connect(ac.destination);
+      osc.start(now); osc.stop(now + 0.22);
+      // Rumble
+      const ns = _noise(ac, 0.22), filt = ac.createBiquadFilter(), ng = ac.createGain();
+      filt.type = 'lowpass'; filt.frequency.value = 160;
+      ng.gain.setValueAtTime(v * 0.5, now);
+      ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+      ns.connect(filt); filt.connect(ng); ng.connect(ac.destination);
+      ns.start(now); ns.stop(now + 0.22);
+
+    } else if (name === 'Plasma') {
+      // High sine sweep down + buzzy sawtooth overlay = sci-fi zap
+      const o1 = ac.createOscillator(), g1 = ac.createGain();
+      o1.type = 'sine';
+      o1.frequency.setValueAtTime(1400, now);
+      o1.frequency.exponentialRampToValueAtTime(180, now + 0.14);
+      g1.gain.setValueAtTime(v * 0.38, now);
+      g1.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+      o1.connect(g1); g1.connect(ac.destination);
+      o1.start(now); o1.stop(now + 0.14);
+      const o2 = ac.createOscillator(), g2 = ac.createGain();
+      o2.type = 'sawtooth';
+      o2.frequency.setValueAtTime(1600, now);
+      o2.frequency.exponentialRampToValueAtTime(320, now + 0.11);
+      g2.gain.setValueAtTime(v * 0.22, now);
+      g2.gain.exponentialRampToValueAtTime(0.0001, now + 0.11);
+      o2.connect(g2); g2.connect(ac.destination);
+      o2.start(now); o2.stop(now + 0.11);
+    }
+  } catch(_) {} // silently ignore if audio context unavailable
+}
+
 // ── Name entry ────────────────────────────────────────────────────
 // Show the name screen, resolve with the chosen name, then hide it.
 const _chosenName = await (function askName() {
@@ -380,6 +499,7 @@ function shoot() {
   const w    = getWeapon(player.level);
   const cd   = player.buffs.rapid  >0 ? w.cd*0.55 : w.cd;
   const base = Math.atan2(mouseY-player.y, mouseX-player.x);
+  playWeaponSound(w.name);
   if (w.beam) {
     const beamOpts = {
       splash:      player.buffs.splash   >0 ? 70  : 0,

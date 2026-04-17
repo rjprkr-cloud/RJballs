@@ -10,10 +10,42 @@ function updateCursor() {
   canvas.style.cursor = (state === 'playing') ? 'none' : 'default';
 }
 
-// ── Music ─────────────────────────────────────────────────────────
-const music = new Audio('music.mp3');
-music.loop = true;
+// ── Music playlist ────────────────────────────────────────────────
 let musicVolume = 0.30;
+
+const TRACKS = [
+  'music.mp3',
+  'track-tokyo.mp3',
+  'track-midtown.mp3',
+  'track-worlds.mp3',
+];
+
+// Shuffle a copy so the order is random each session, no immediate repeats
+function _shuffleTracks() {
+  const arr = [...TRACKS];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+let _playlist  = _shuffleTracks();
+let _trackIdx  = 0;
+const music    = new Audio(_playlist[_trackIdx]);
+music.volume   = musicVolume;
+
+// When a track ends, advance to the next (re-shuffle when the list wraps)
+music.addEventListener('ended', () => {
+  _trackIdx++;
+  if (_trackIdx >= _playlist.length) {
+    _playlist = _shuffleTracks();
+    _trackIdx = 0;
+  }
+  music.src = _playlist[_trackIdx];
+  music.volume = musicVolume;
+  music.play().catch(() => {});
+});
 
 // ── Game-over sting ───────────────────────────────────────────────
 const gameOverSfx = new Audio('game-over.mp3');
@@ -22,7 +54,6 @@ function playGameOver() {
   gameOverSfx.currentTime = 0;
   gameOverSfx.play().catch(() => {});
 }
-music.volume = musicVolume;
 
 // musicPlay() is called from the RAF loop (not a direct user gesture).
 // If the browser blocks autoplay, we set up one-shot retry listeners so
